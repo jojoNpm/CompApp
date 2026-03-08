@@ -122,68 +122,63 @@ async function showEditPopup(product) {
 
     // 8. Écouteur pour le bouton Sauvegarder (avec vérification et LOGS)
     if (saveEditBtn) {
-      saveEditBtn.onclick = async function() {
-        try {
-          // Validation des champs
-          const name = document.getElementById('editName').value.trim();
-          if (!name) throw new Error("Le nom du produit est obligatoire");
+  saveEditBtn.onclick = async function() {
+    try {
+      // 1. Validation des champs
+      const name = document.getElementById('editName').value.trim();
+      if (!name) throw new Error("Le nom du produit est obligatoire");
 
-          // Récupération des données
-          const history = Array.from(historyContainer.children).map(row => {
-            const inputs = row.querySelectorAll('input');
-            if (inputs.length < 2) return null;
+      // 2. Récupération de l'historique
+      const historyRows = document.querySelectorAll('#historyContainer .historyRow');
+      const history = Array.from(historyRows).map(row => {
+        const inputs = row.querySelectorAll('input');
+        if (inputs.length < 2) return null;
+        return {
+          date: inputs[0].value,
+          price: parseFloat(inputs[1].value)
+        };
+      }).filter(entry => entry && !isNaN(entry.price));
 
-            return {
-              date: inputs[0].value,
-              price: parseFloat(inputs[1].value)
-            };
-          }).filter(entry => entry && !isNaN(entry.price));
+      console.log("Historique récupéré:", history); // Log de debug
 
-          // LOG: Afficher les données avant sauvegarde
-          console.log("Données avant sauvegarde:", {
-            product: currentEditProduct,
-            history: history
-          });
-
-          // Construction de l'objet produit
-          const updatedProduct = {
-            ...currentEditProduct,
-            name: name,
-            brand: currentEditProduct.brand,
-            regular_price: parseFloat(document.getElementById('editPrice').value) || 0,
-            promo_percent: parseFloat(document.getElementById('editPromoSite').value) || 0,
-            promotions: {
-              label: currentEditProduct.promotions?.label || null,
-              realPercent: parseFloat(document.getElementById('editPromoReal').value) || 0
-            },
-            weight_raw: document.getElementById('editWeight').value,
-            price_per_kg: parseFloat(document.getElementById('editKg').value) || 0,
-            canonicalName: document.getElementById('custom-canonical').value ||
-                          window.utils.generateCanonicalName(name),
-            history: history.sort((a, b) => new Date(a.date) - new Date(b.date))
-          };
-
-          // LOG: Afficher l'objet final avant envoi
-          console.log("Objet final à sauvegarder:", updatedProduct);
-
-          // Sauvegarde via l'API
-          const result = await window.api.upsertProduct(updatedProduct);
-
-          // LOG: Afficher le résultat de l'API
-          console.log("Résultat de l'API:", result);
-
-          // Fermeture et rechargement
-          popup.classList.add('hidden');
-          if (window.rendererLoadProducts) window.rendererLoadProducts();
-
-        } catch (error) {
-          console.error("Erreur sauvegarde:", error);
-          alert(`Erreur: ${error.message}`);
-        }
+      // 3. Construction de l'objet produit
+      const updatedProduct = {
+        ...currentEditProduct,
+        name: name,
+        brand: currentEditProduct.brand,
+        regular_price: parseFloat(document.getElementById('editPrice').value) || 0,
+        promo_percent: parseFloat(document.getElementById('editPromoSite').value) || 0,
+        promotions: {
+          label: currentEditProduct.promotions?.label || null,
+          realPercent: parseFloat(document.getElementById('editPromoReal').value) || 0
+        },
+        weight_raw: document.getElementById('editWeight').value,
+        price_per_kg: parseFloat(document.getElementById('editKg').value) || 0,
+        canonicalName: document.getElementById('custom-canonical').value ||
+                      window.utils.generateCanonicalName(name),
+        history: history.map(h => ({
+          date: h.date.includes('T') ? h.date : `${h.date}T00:00:00`,
+          price: h.price
+        }))
       };
-    }
 
-    // ... (le reste de ton code)
+      console.log("Produit à sauvegarder:", updatedProduct); // Log de debug
+
+      // 4. Appel à l'API
+      const result = await window.api.upsertProduct(updatedProduct);
+      console.log("Résultat API:", result);
+
+      // 5. Fermeture et rechargement
+      popup.classList.add('hidden');
+      if (window.rendererLoadProducts) window.rendererLoadProducts();
+
+    } catch (error) {
+      console.error("Erreur complète:", error);
+      alert(`Erreur: ${error.message}`);
+    }
+  };
+}
+
   } catch (error) {
     console.error("Erreur dans showEditPopup:", error);
     alert(`Erreur: ${error.message}`);
