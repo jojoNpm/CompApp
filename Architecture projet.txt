@@ -1,0 +1,42 @@
+CompApp/
+│
+├── main.js
+├── preload.js
+├── package.json
+├── run.vbs
+│
+├── /renderer
+│   ├── index.html
+│   ├── renderer.js
+│   └── style.css
+│
+├── /services
+│   ├── productService.js
+│   ├── canonicalService.js
+│   ├── scrapingService.js
+│   ├── utils.js
+│   └── /sites
+│       ├── ovs.js
+│       ├── intermarche.js
+│       ├── carrefour.js
+│       ├── vegetalfood.js
+│       ├── config.json
+│       └── chronodrive.js
+│
+├── /db
+│   ├── database.js
+│   ├── insert_brands.js
+│   └── initDatabase.js
+│
+├── /extension
+│   ├── manifest.json
+│   ├── background.js
+│   ├── popup.js
+│   ├── popup.html
+│   └── content.js
+│
+└── /charts
+    └── chartUtils.js
+
+
+Faire graphique historique de prix

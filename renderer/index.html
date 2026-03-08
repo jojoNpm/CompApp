@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>CompApp</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="sidebar">
+      <textarea id="product-url" placeholder="Coller l'URL du produit ici..." rows="3"></textarea>
+      <button id="scrape-url" class="btn scrape">Scraper</button>
+      <button id="show-graph-all" class="btn graph">Graphique</button>
+      <button id="update-selected" class="btn update">Mettre à jour</button>
+      <button id="delete-selected" class="btn delete">Supprimer</button>
+      <div class="selection">Sélectionnés : <span id="selectionCount">0</span></div>
+    </div>
+    <div class="content">
+      <table id="products-table">
+        <thead>
+  <tr>
+    <th><input type="checkbox" id="check-all"></th>
+    <th>Nom du produit</th>    <!-- 1 -->
+    <th>Site</th>              <!-- 2 -->
+    <th>Prix</th>              <!-- 3 -->
+    <th>% Promo</th>           <!-- 4 -->
+    <th>Poids</th>             <!-- 5 -->
+    <th>€/kg</th>              <!-- 6 -->
+    <th>Marque</th>            <!-- 7 -->
+    <th>Mis à jour</th>        <!-- 8 -->
+    <th>Actions</th>           <!-- 9 -->
+  </tr>
+</thead>
+        <tbody id="products-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- POPUP PRODUIT SCRAPÉ -->
+  <div id="popup" class="popup hidden"></div>
+
+  <!-- POPUP EDIT -->
+  <!-- POPUP EDIT (extrait) -->
+<div id="editPopup" class="popup hidden">
+  <div class="popupContent">
+    <h2>Modifier produit</h2>
+
+    <label>Nom du produit</label>
+    <input id="editName">
+
+    <label>Marque</label>
+    <div style="display: flex; gap: 6px;">
+      <input id="editBrand" style="flex: 1;">
+      <button id="changeBrandBtn" class="btn update" style="flex: 0;">Changer la marque</button>
+    </div>
+
+    <label>Prix</label>
+    <input id="editPrice">
+
+    <label>% Promo site</label>
+    <input id="editPromoSite">
+
+    <label>% Promo réel</label>
+    <input id="editPromoReal">
+
+    <label>Poids</label>
+    <input id="editWeight">
+
+    <label>Prix/kg</label>
+    <input id="editKg">
+
+    <label>Nom canonique</label>
+    <input id="custom-canonical">
+
+    <h3>Historique des prix</h3>
+    <div id="historyContainer"></div>
+    <button id="addHistory" class="btn graph">Ajouter une ligne</button>
+
+    <div class="popupButtons">
+      <button id="saveEdit" class="btn update">Sauvegarder</button>
+      <button id="closeEdit" class="btn delete">Annuler</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="historyPopup" class="popup hidden">
+
+</div>
+
+
+
+  <!-- POPUP GRAPHIQUE -->
+  <div id="chartPopup" class="popup hidden">
+  <div class="popupContent" style="width: 800px; height: 500px;">
+    <h2 id="chartTitle">Historique des prix</h2>
+    <canvas id="priceChart" width="800" height="400"></canvas>
+    <button id="closeChart" class="btn delete" style="margin-top: 10px;">Fermer</button>
+  </div>
+</div>
+
+<script type="module" src="renderer.js"></script>
+  
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 2,
+  "name": "Intermarche Scraper",
+  "version": "2.0",
+  "description": "Scraper Intermarché vers app Electron",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "http://localhost:3210/*",
+    "*://www.intermarche.com/*"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.intermarche.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_action": {
+    "default_title": "Importer le produit",
+    "default_popup": "popup.html"
+  }
+}
