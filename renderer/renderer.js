@@ -128,12 +128,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           };
 
-          // 2. Double-clic pour éditer
-          tr.ondblclick = (e) => {
-            e.stopPropagation();
-            window.showEditPopup(p);
-          };
-
           // 3. Checkbox pour la sélection
           tr.querySelector('.product-checkbox').addEventListener('change', (e) => {
             const isChecked = e.target.checked;

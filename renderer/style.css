@@ -1,5 +1,5 @@
 /* =============================================
-   STYLE.CSS - VERSION OPTIMISÉE ET COMPLÈTE
+   STYLE.CSS (VERSION COMPLÈTE ET CORRIGÉE)
    ============================================= */
 
 body {
@@ -165,7 +165,93 @@ tr:hover { background: #40454b; }
   margin: 5px 0;
 }
 
-/* ===== HISTORIQUE DES PRIX ===== */
+/* ===== NOUVEAU STYLE POUR L'HISTORIQUE INTÉGRÉ ===== */
+#editPopup .popupContent {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 80vh;
+  overflow-y: auto;
+  width: 600px; /* Plus large pour l'historique */
+}
+
+#editPopup .mainSection,
+#editPopup .historySection {
+  padding: 15px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #333;
+}
+
+#editPopup .historyInputRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+#editPopup .historyInputRow input[type="date"],
+#editPopup .historyInputRow input[type="number"] {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #444;
+  color: white;
+}
+
+#editPopup #addHistoryBtn {
+  background: linear-gradient(45deg, #1976d2, #64b5f6);
+  padding: 8px 15px;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+#editPopup #historyTableContainer {
+  margin-top: 15px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+#editPopup #historyTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #3a3a3a;
+}
+
+#editPopup #historyTable th {
+  background: #2f343a;
+  padding: 10px;
+  text-align: left;
+  font-weight: bold;
+  color: #ccc;
+}
+
+#editPopup #historyTable td {
+  padding: 10px;
+  border-bottom: 1px solid #444;
+}
+
+#editPopup #historyTable tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+#editPopup .deleteHistoryEntry {
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#editPopup .deleteHistoryEntry:hover {
+  background: #cc0000;
+}
+
+/* ===== HISTORIQUE DES PRIX (ancienne version) ===== */
 .historyRow {
   display: flex;
   gap: 8px;
@@ -217,13 +303,13 @@ tr:hover { background: #40454b; }
 .history-tabs {
   display: flex;
   margin-bottom: 15px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #555;
 }
 
 .tab-button {
   padding: 8px 16px;
-  background: #3a3a3a;  /* Fond plus sombre */
-  color: white;       /* Texte blanc */
+  background: #3a3a3a;
+  color: white;
   border: none;
   cursor: pointer;
   margin-right: 5px;
@@ -231,19 +317,19 @@ tr:hover { background: #40454b; }
 }
 
 .tab-button.active {
-  background: #2f343a;  /* Fond encore plus sombre */
+  background: #2f343a;
   border-bottom: 2px solid #4CAF50;
   font-weight: bold;
-  color: #4CAF50;      /* Texte vert pour le bouton actif */
+  color: #4CAF50;
 }
 
 .tab-content {
   display: none;
   padding: 10px;
-  border: 1px solid #555;  /* Bordure plus sombre */
+  border: 1px solid #555;
   border-radius: 0 0 4px 4px;
-  background: #3a3a3a;     /* Fond sombre */
-  color: white;           /* Texte blanc */
+  background: #3a3a3a;
+  color: white;
 }
 
 .tab-content.active {
@@ -258,11 +344,11 @@ tr:hover { background: #40454b; }
 .history-table th, .history-table td {
   padding: 8px;
   text-align: left;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #555;
 }
 
 .history-table th {
-  background-color: #f2f2f2;
+  background-color: #2f343a;
 }
 
 /* ===== SÉLECTEUR DE MARQUE ===== */
@@ -351,4 +437,86 @@ tr:hover { background: #40454b; }
 /* ===== CHART ===== */
 .chartBox {
   width: 800px;
+}
+
+/* ===== NOUVEAUX STYLES POUR L'EXPÉRIENCE AMÉLIORÉE ===== */
+/* Style pour les inputs de la nouvelle section historique */
+#newHistoryDate, #newHistoryPrice {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #444;
+  color: white;
+  font-size: 14px;
+}
+
+/* Style pour le bouton "Ajouter" dans l'historique */
+#addHistoryBtn {
+  background: linear-gradient(45deg, #1976d2, #64b5f6);
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+#addHistoryBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Style pour le tableau d'historique */
+#historyTable {
+  width: 100%;
+  margin-top: 15px;
+  border-collapse: collapse;
+}
+
+#historyTable th {
+  background: #2f343a;
+  padding: 10px;
+  text-align: left;
+  color: #ccc;
+  font-weight: bold;
+}
+
+#historyTable td {
+  padding: 10px;
+  border-bottom: 1px solid #444;
+}
+
+#historyTable tr:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+/* Style pour les boutons de suppression dans le tableau */
+.deleteHistoryEntry {
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.deleteHistoryEntry:hover {
+  background: #cc0000;
+}
+
+/* Style pour les sections de la popup */
+.mainSection, .historySection {
+  background: #333;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.historySection h3 {
+  margin-top: 0;
+  color: #ccc;
+  border-bottom: 1px solid #555;
+  padding-bottom: 8px;
 }

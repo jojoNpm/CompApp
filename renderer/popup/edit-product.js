@@ -1,11 +1,11 @@
 // ===============================
-// POPUP ÉDITION PRODUIT 
+// POPUP ÉDITION PRODUIT (VERSION CORRIGÉE AVEC HISTORIQUE INTÉGRÉ)
 // ===============================
 let currentEditProduct = null;
 
 async function showEditPopup(product) {
   try {
-    console.log("Ouverture de la popup pour:", product.name); // Log de debug
+    console.log("Ouverture de la popup pour:", product.name);
 
     // 1. Préparation des données
     product.name = window.utils.extractBrandFromName(product.name, product.brand);
@@ -27,35 +27,61 @@ async function showEditPopup(product) {
       <div class="popupContent">
         <h2>Modifier ${product.name}</h2>
 
-        <label>Nom du produit</label>
-        <input id="editName" value="${currentEditProduct.name || ''}">
+        <!-- Section principale -->
+        <div class="mainSection">
+          <label>Nom du produit</label>
+          <input id="editName" value="${currentEditProduct.name || ''}">
 
-        <label>Marque</label>
-        <div id="edit-brand-selector-container" class="brand-select-container">
-          <span id="edit-brand-display">${currentEditProduct.brand || ''}</span>
+          <label>Marque</label>
+          <div id="edit-brand-selector-container" class="brand-select-container">
+            <span id="edit-brand-display">${currentEditProduct.brand || ''}</span>
+          </div>
+
+          <label>Prix</label>
+          <input id="editPrice" value="${currentEditProduct.regular_price || ''}">
+
+          <label>% Promo site</label>
+          <input id="editPromoSite" value="${currentEditProduct.promo_percent || ''}">
+
+          <label>% Promo réel</label>
+          <input id="editPromoReal" value="${currentEditProduct.promotions?.realPercent || ''}">
+
+          <label>Poids</label>
+          <input id="editWeight" value="${currentEditProduct.weight_raw || ''}">
+
+          <label>Prix/kg</label>
+          <input id="editKg" value="${currentEditProduct.price_per_kg || ''}">
+
+          <label>Nom canonique</label>
+          <input id="custom-canonical" value="${currentEditProduct.canonicalName || ''}">
         </div>
 
-        <label>Prix</label>
-        <input id="editPrice" value="${currentEditProduct.regular_price || ''}">
+        <!-- Section Historique -->
+        <div class="historySection">
+          <h3>Historique des prix</h3>
+          <div id="historyForm">
+            <div class="historyInputRow">
+              <input type="date" id="newHistoryDate" value="${new Date().toISOString().split('T')[0]}">
+              <input type="number" id="newHistoryPrice" step="0.01" placeholder="Prix">
+              <button id="addHistoryBtn" class="btn graph">Ajouter</button>
+            </div>
+          </div>
 
-        <label>% Promo site</label>
-        <input id="editPromoSite" value="${currentEditProduct.promo_percent || ''}">
-
-        <label>% Promo réel</label>
-        <input id="editPromoReal" value="${currentEditProduct.promotions?.realPercent || ''}">
-
-        <label>Poids</label>
-        <input id="editWeight" value="${currentEditProduct.weight_raw || ''}">
-
-        <label>Prix/kg</label>
-        <input id="editKg" value="${currentEditProduct.price_per_kg || ''}">
-
-        <label>Nom canonique</label>
-        <input id="custom-canonical" value="${currentEditProduct.canonicalName || ''}">
-
-        <h3>Historique des prix</h3>
-        <div id="historyContainer"></div>
-        <button id="addHistory" class="btn graph">Ajouter un prix</button>
+          <div id="historyTableContainer">
+            <table id="historyTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Prix (€)</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <!-- Les lignes seront ajoutées dynamiquement -->
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <div class="popupButtons">
           <button id="saveEdit" class="btn update">Sauvegarder</button>
@@ -65,12 +91,12 @@ async function showEditPopup(product) {
     `;
 
     // 3. Récupération des éléments
-    const historyContainer = document.getElementById('historyContainer');
-    const addHistoryBtn = document.getElementById('addHistory');
     const saveEditBtn = document.getElementById('saveEdit');
     const closeEditBtn = document.getElementById('closeEdit');
+    const addHistoryBtn = document.getElementById('addHistoryBtn');
+    const historyTableBody = document.getElementById('historyTableBody');
 
-    if (!historyContainer || !saveEditBtn || !closeEditBtn) {
+    if (!saveEditBtn || !closeEditBtn || !addHistoryBtn || !historyTableBody) {
       console.error("Éléments manquants dans la popup !");
       return;
     }
@@ -80,98 +106,113 @@ async function showEditPopup(product) {
       window.setupBrandSelector(currentEditProduct, 'edit-brand-selector-container', 'edit-brand-display');
     }
 
-    // 5. Fonction pour créer une ligne d'historique
-    function createHistoryRow(dateValue, priceValue) {
-      const row = document.createElement('div');
-      row.className = 'historyRow';
-      row.innerHTML = `
-        <input type="date" value="${dateValue || new Date().toISOString().split('T')[0]}">
-        <input type="number" value="${priceValue || ''}" step="0.01" placeholder="Prix">
-        <button class="deleteHistory">✕</button>
-      `;
+    // 5. Fonction pour afficher l'historique existant
+    function renderHistoryTable() {
+      historyTableBody.innerHTML = '';
+      if (!currentEditProduct.history || currentEditProduct.history.length === 0) {
+        historyTableBody.innerHTML = '<tr><td colspan="3">Aucun historique</td></tr>';
+        return;
+      }
 
-      row.querySelector('.deleteHistory').onclick = () => row.remove();
-      return row;
+      // Tri par date décroissante
+      const sortedHistory = [...currentEditProduct.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      sortedHistory.forEach(entry => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${entry.date}</td>
+          <td>${entry.price.toFixed(2)} €</td>
+          <td><button class="deleteHistoryEntry" data-date="${entry.date}">✕</button></td>
+        `;
+        historyTableBody.appendChild(row);
+      });
     }
 
-    // 6. Remplissage de l'historique existant
-    if (currentEditProduct.history.length > 0) {
-      currentEditProduct.history
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .forEach(entry => {
-          historyContainer.appendChild(createHistoryRow(entry.date, entry.price));
-        });
-    }
+    // 6. Écouteur pour ajouter une nouvelle entrée d'historique
+    addHistoryBtn.onclick = () => {
+      const dateInput = document.getElementById('newHistoryDate');
+      const priceInput = document.getElementById('newHistoryPrice');
 
-    // 7. Écouteur pour ajouter une ligne d'historique
-    if (addHistoryBtn) {
-      addHistoryBtn.onclick = () => {
-        historyContainer.appendChild(createHistoryRow());
-      };
-    }
+      const date = dateInput.value;
+      const price = parseFloat(priceInput.value);
 
-    // 8. Écouteur pour Sauvegarder (version finale optimisée)
-saveEditBtn.onclick = async function() {
-  try {
-    // 1. Validation du nom
-    const name = document.getElementById('editName').value.trim();
-    if (!name) throw new Error("Le nom est obligatoire");
+      if (!date) {
+        alert("Veuillez sélectionner une date.");
+        return;
+      }
 
-    // 2. Récupération et validation de l'historique
-    const history = Array.from(historyContainer.children)
-      .map(row => {
-        const inputs = row.querySelectorAll('input');
-        if (inputs.length < 2) return null;
+      if (isNaN(price) || price <= 0) {
+        alert("Veuillez saisir un prix valide (ex: 2.50).");
+        return;
+      }
 
-        const price = parseFloat(inputs[1].value);
-        if (isNaN(price)) {
-          throw new Error(`Prix invalide: "${inputs[1].value}". Veuillez saisir un nombre (ex: 2.50).`);
-        }
+      // Vérifie si la date existe déjà
+      const dateExists = currentEditProduct.history.some(entry => entry.date === date);
+      if (dateExists) {
+        alert(`Un prix est déjà enregistré pour la date du ${date}. Une seule entrée par date est autorisée.`);
+        return;
+      }
 
-        return {
-          date: inputs[0].value,
-          price: price
-        };
-      })
-      .filter(entry => entry !== null); // Filtre les entrées nulles
+      // Ajoute la nouvelle entrée
+      currentEditProduct.history.push({ date, price });
+      currentEditProduct.history.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    if (history.length === 0) {
-      throw new Error("Aucun prix valide dans l'historique. Veuillez ajouter au moins une entrée.");
-    }
+      // Met à jour le tableau
+      renderHistoryTable();
 
-    console.log("Historique à sauvegarder:", history); // Log de debug
-
-    // 3. Construction de l'objet produit
-    const updatedProduct = {
-      ...currentEditProduct,
-      name: name,
-      regular_price: parseFloat(document.getElementById('editPrice').value) || 0,
-      history: history.map(h => ({
-        date: h.date.includes('T') ? h.date : `${h.date}T00:00:00`,
-        price: h.price
-      }))
+      // Réinitialise les champs
+      priceInput.value = '';
     };
 
-    console.log("Produit complet:", updatedProduct); // Log de debug
+    // 7. Écouteur pour supprimer une entrée d'historique
+    historyTableBody.addEventListener('click', (e) => {
+      if (e.target.classList.contains('deleteHistoryEntry')) {
+        const dateToDelete = e.target.dataset.date;
+        currentEditProduct.history = currentEditProduct.history.filter(entry => entry.date !== dateToDelete);
+        renderHistoryTable();
+      }
+    });
 
-    // 4. Appel à l'API
-    const result = await window.api.upsertProduct(updatedProduct);
-    if (!result?.success) {
-      throw new Error(result?.error || "Échec de la sauvegarde. Voir la console pour plus de détails.");
-    }
+    // 8. Affiche l'historique existant
+    renderHistoryTable();
 
-    // 5. Fermeture et rechargement
-    popup.classList.add('hidden');
-    if (window.rendererLoadProducts) window.rendererLoadProducts();
+    // 9. Écouteur pour Sauvegarder
+    saveEditBtn.onclick = async function() {
+      try {
+        // 1. Validation des champs principaux
+        const name = document.getElementById('editName').value.trim();
+        if (!name) throw new Error("Le nom est obligatoire");
 
-  } catch (error) {
-    console.error("Erreur complète:", error);
-    alert(`Erreur: ${error.message}`); // Affiche l'erreur à l'utilisateur
-  }
-};
+        // 2. Construction de l'objet produit
+        const updatedProduct = {
+          ...currentEditProduct,
+          name: name,
+          regular_price: parseFloat(document.getElementById('editPrice').value) || 0,
+          history: currentEditProduct.history.map(h => ({
+            date: h.date.includes('T') ? h.date : `${h.date}T00:00:00`,
+            price: h.price
+          }))
+        };
 
+        console.log("Produit à sauvegarder:", updatedProduct);
 
-    // 9. Écouteur pour Annuler
+        // 3. Appel à l'API
+        const result = await window.api.upsertProduct(updatedProduct);
+        if (!result?.success) {
+          throw new Error(result?.error || "Échec de la sauvegarde.");
+        }
+
+        // 4. Fermeture et rechargement
+        popup.classList.add('hidden');
+        if (window.rendererLoadProducts) window.rendererLoadProducts();
+
+      } catch (error) {
+        console.error("Erreur complète:", error);
+        alert(`Erreur: ${error.message}`);
+      }
+    };
+
+    // 10. Écouteur pour Annuler
     closeEditBtn.onclick = () => {
       popup.classList.add('hidden');
     };
