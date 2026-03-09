@@ -110,46 +110,60 @@ async function showEditPopup(product) {
       };
     }
 
-    // 8. Écouteur pour Sauvegarder
-    saveEditBtn.onclick = async function() {
-      try {
-        const name = document.getElementById('editName').value.trim();
-        if (!name) throw new Error("Le nom est obligatoire");
+    // 8. Écouteur pour Sauvegarder (version corrigée)
+saveEditBtn.onclick = async function() {
+  try {
+    const name = document.getElementById('editName').value.trim();
+    if (!name) throw new Error("Le nom est obligatoire");
 
-        const history = Array.from(historyContainer.children).map(row => {
-          const inputs = row.querySelectorAll('input');
-          if (inputs.length < 2) return null;
-          return {
-            date: inputs[0].value,
-            price: parseFloat(inputs[1].value)
-          };
-        }).filter(entry => entry && !isNaN(entry.price));
+    const history = Array.from(historyContainer.children).map(row => {
+      const inputs = row.querySelectorAll('input');
+      if (inputs.length < 2) return null;
+      return {
+        date: inputs[0].value,
+        price: parseFloat(inputs[1].value)
+      };
+    }).filter(entry => entry && !isNaN(entry.price));
 
-        console.log("Historique à sauvegarder:", history); // Log de debug
+    console.log("Historique à sauvegarder:", history);
 
-        const updatedProduct = {
-          ...currentEditProduct,
-          name: name,
-          regular_price: parseFloat(document.getElementById('editPrice').value) || 0,
-          history: history.map(h => ({
-            date: h.date.includes('T') ? h.date : `${h.date}T00:00:00`,
-            price: h.price
-          }))
-        };
-
-        console.log("Produit complet:", updatedProduct); // Log de debug
-
-        const result = await window.api.upsertProduct(updatedProduct);
-        console.log("Résultat API:", result);
-
-        popup.classList.add('hidden');
-        if (window.rendererLoadProducts) window.rendererLoadProducts();
-
-      } catch (error) {
-        console.error("Erreur:", error);
-        alert(`Erreur: ${error.message}`);
-      }
+    const updatedProduct = {
+      ...currentEditProduct,
+      name: name,
+      regular_price: parseFloat(document.getElementById('editPrice').value) || 0,
+      history: history.map(h => ({
+        date: h.date.includes('T') ? h.date : `${h.date}T00:00:00`,
+        price: h.price
+      }))
     };
+
+    console.log("Produit complet:", updatedProduct);
+
+    // Appel à l'API avec gestion d'erreur renforcée
+    let result;
+    try {
+      result = await window.api.upsertProduct(updatedProduct);
+      console.log("Résultat API:", result);
+
+      // Vérification explicite du résultat
+      if (!result || result.success === false) {
+        throw new Error(result?.error || "La sauvegarde a échoué");
+      }
+    } catch (apiError) {
+      console.error("Erreur API:", apiError);
+      alert(`Erreur lors de la sauvegarde: ${apiError.message}`);
+      return; // Arrête l'exécution si erreur
+    }
+
+    // Fermeture et rechargement UNIQUEMENT si succès
+    popup.classList.add('hidden');
+    if (window.rendererLoadProducts) window.rendererLoadProducts();
+
+  } catch (error) {
+    console.error("Erreur complète:", error);
+    alert(`Erreur: ${error.message}`);
+  }
+};
 
     // 9. Écouteur pour Annuler
     closeEditBtn.onclick = () => {
