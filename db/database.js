@@ -460,7 +460,7 @@ async function getBrandUrl(brandName, siteName) {
   });
 }
 
-// Nouvelle méthode pour exécuter des requêtes SQL directes
+// Méthode pour exécuter des requêtes SQL directes
 async function run(sql, params = []) {
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -471,6 +471,20 @@ async function run(sql, params = []) {
   });
 }
 
+// Méthode pour supprimer l'historique de prix d'un produit
+async function deletePriceHistory(productId) {
+  return run('DELETE FROM price_history WHERE product_id = ?', [productId]);
+}
+
+// Méthode pour ajouter une entrée d'historique de prix
+async function addPriceHistoryEntry(productId, price, date) {
+  return run(
+    'INSERT INTO price_history (product_id, price, date) VALUES (?, ?, ?)',
+    [productId, price, date]
+  );
+}
+
+// Export des méthodes
 module.exports = {
   openDb,
   init,
@@ -483,7 +497,7 @@ module.exports = {
   getBrandUrl,
   insertCanonicalProduct,
   updateProductCanonicalId,
-  run,                     // <-- Ajouté
-  deletePriceHistory,      // <-- Ajouté
-  addPriceHistoryEntry     // <-- Ajouté
+  run,                     // Méthode unique
+  deletePriceHistory,      // Méthode ajoutée
+  addPriceHistoryEntry     // Méthode ajoutée
 };

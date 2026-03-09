@@ -110,23 +110,38 @@ async function showEditPopup(product) {
       };
     }
 
-    // 8. Écouteur pour Sauvegarder (version corrigée)
+    // 8. Écouteur pour Sauvegarder (version finale optimisée)
 saveEditBtn.onclick = async function() {
   try {
+    // 1. Validation du nom
     const name = document.getElementById('editName').value.trim();
     if (!name) throw new Error("Le nom est obligatoire");
 
-    const history = Array.from(historyContainer.children).map(row => {
-      const inputs = row.querySelectorAll('input');
-      if (inputs.length < 2) return null;
-      return {
-        date: inputs[0].value,
-        price: parseFloat(inputs[1].value)
-      };
-    }).filter(entry => entry && !isNaN(entry.price));
+    // 2. Récupération et validation de l'historique
+    const history = Array.from(historyContainer.children)
+      .map(row => {
+        const inputs = row.querySelectorAll('input');
+        if (inputs.length < 2) return null;
 
-    console.log("Historique à sauvegarder:", history);
+        const price = parseFloat(inputs[1].value);
+        if (isNaN(price)) {
+          throw new Error(`Prix invalide: "${inputs[1].value}". Veuillez saisir un nombre (ex: 2.50).`);
+        }
 
+        return {
+          date: inputs[0].value,
+          price: price
+        };
+      })
+      .filter(entry => entry !== null); // Filtre les entrées nulles
+
+    if (history.length === 0) {
+      throw new Error("Aucun prix valide dans l'historique. Veuillez ajouter au moins une entrée.");
+    }
+
+    console.log("Historique à sauvegarder:", history); // Log de debug
+
+    // 3. Construction de l'objet produit
     const updatedProduct = {
       ...currentEditProduct,
       name: name,
@@ -137,33 +152,24 @@ saveEditBtn.onclick = async function() {
       }))
     };
 
-    console.log("Produit complet:", updatedProduct);
+    console.log("Produit complet:", updatedProduct); // Log de debug
 
-    // Appel à l'API avec gestion d'erreur renforcée
-    let result;
-    try {
-      result = await window.api.upsertProduct(updatedProduct);
-      console.log("Résultat API:", result);
-
-      // Vérification explicite du résultat
-      if (!result || result.success === false) {
-        throw new Error(result?.error || "La sauvegarde a échoué");
-      }
-    } catch (apiError) {
-      console.error("Erreur API:", apiError);
-      alert(`Erreur lors de la sauvegarde: ${apiError.message}`);
-      return; // Arrête l'exécution si erreur
+    // 4. Appel à l'API
+    const result = await window.api.upsertProduct(updatedProduct);
+    if (!result?.success) {
+      throw new Error(result?.error || "Échec de la sauvegarde. Voir la console pour plus de détails.");
     }
 
-    // Fermeture et rechargement UNIQUEMENT si succès
+    // 5. Fermeture et rechargement
     popup.classList.add('hidden');
     if (window.rendererLoadProducts) window.rendererLoadProducts();
 
   } catch (error) {
     console.error("Erreur complète:", error);
-    alert(`Erreur: ${error.message}`);
+    alert(`Erreur: ${error.message}`); // Affiche l'erreur à l'utilisateur
   }
 };
+
 
     // 9. Écouteur pour Annuler
     closeEditBtn.onclick = () => {
