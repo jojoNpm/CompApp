@@ -197,6 +197,8 @@ async function updateProductCanonicalId(productId, canonicalId) {
   });
 }
 
+
+
 /* ======================
    PRODUITS
 ====================== */
@@ -458,6 +460,17 @@ async function getBrandUrl(brandName, siteName) {
   });
 }
 
+// Nouvelle méthode pour exécuter des requêtes SQL directes
+async function run(sql, params = []) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+}
+
 module.exports = {
   openDb,
   init,
@@ -469,5 +482,8 @@ module.exports = {
   generateCanonicalName,
   getBrandUrl,
   insertCanonicalProduct,
-  updateProductCanonicalId
+  updateProductCanonicalId,
+  run,                     // <-- Ajouté
+  deletePriceHistory,      // <-- Ajouté
+  addPriceHistoryEntry     // <-- Ajouté
 };
