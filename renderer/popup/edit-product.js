@@ -1,229 +1,151 @@
-// ===============================
-// POPUP ÉDITION PRODUIT (VERSION CORRIGÉE AVEC HISTORIQUE INTÉGRÉ)
-// ===============================
-let currentEditProduct = null;
+// ==============================
+// EDIT PRODUCT POPUP - VERSION FINALE
+// ==============================
 
-async function showEditPopup(product) {
-  try {
-    console.log("Ouverture de la popup pour:", product.name);
+function showEditPopup(product) {
+  const popup = document.getElementById('editProductPopup');
+  popup.style.display = 'flex';
 
-    // 1. Préparation des données
-    product.name = window.utils.extractBrandFromName(product.name, product.brand);
-    product.brand = window.utils.normalizeBrand(product.brand);
-    currentEditProduct = {...product, history: [...(product.history || [])]};
-
-    if (!currentEditProduct.canonicalName) {
-      currentEditProduct.canonicalName = window.utils.generateCanonicalName(product.name);
-    }
-
-    // 2. Génération du HTML
-    const popup = document.getElementById('editPopup');
-    if (!popup) {
-      console.error("Élément editPopup introuvable !");
-      return;
-    }
-
-    popup.innerHTML = `
-      <div class="popupContent">
-        <h2>Modifier ${product.name}</h2>
-
-        <!-- Section principale -->
-        <div class="mainSection">
-          <label>Nom du produit</label>
-          <input id="editName" value="${currentEditProduct.name || ''}">
-
-          <label>Marque</label>
-          <div id="edit-brand-selector-container" class="brand-select-container">
-            <span id="edit-brand-display">${currentEditProduct.brand || ''}</span>
-          </div>
-
-          <label>Prix</label>
-          <input id="editPrice" value="${currentEditProduct.regular_price || ''}">
-
-          <label>% Promo site</label>
-          <input id="editPromoSite" value="${currentEditProduct.promo_percent || ''}">
-
-          <label>% Promo réel</label>
-          <input id="editPromoReal" value="${currentEditProduct.promotions?.realPercent || ''}">
-
-          <label>Poids</label>
-          <input id="editWeight" value="${currentEditProduct.weight_raw || ''}">
-
-          <label>Prix/kg</label>
-          <input id="editKg" value="${currentEditProduct.price_per_kg || ''}">
-
-          <label>Nom canonique</label>
-          <input id="custom-canonical" value="${currentEditProduct.canonicalName || ''}">
-        </div>
-
-        <!-- Section Historique -->
-        <div class="historySection">
-          <h3>Historique des prix</h3>
-          <div id="historyForm">
-            <div class="historyInputRow">
-              <input type="date" id="newHistoryDate" value="${new Date().toISOString().split('T')[0]}">
-              <input type="number" id="newHistoryPrice" step="0.01" placeholder="Prix">
-              <button id="addHistoryBtn" class="btn graph">Ajouter</button>
-            </div>
-          </div>
-
-          <div id="historyTableContainer">
-            <table id="historyTable">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Prix (€)</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="historyTableBody">
-                <!-- Les lignes seront ajoutées dynamiquement -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="popupButtons">
-          <button id="saveEdit" class="btn update">Sauvegarder</button>
-          <button id="closeEdit" class="btn delete">Annuler</button>
-        </div>
+  // ===== Contenu HTML =====
+  const container = document.getElementById('editProductContainer');
+  container.innerHTML = `
+    <div class="product-edit-card">
+      <h2>Modifier Produit</h2>
+      <div class="field-group">
+        <label>Nom canonique :</label>
+        <input type="text" id="editCanonical" value="${product.canonicalName || ''}">
       </div>
-    `;
+      <div class="field-group">
+        <label>Nom produit :</label>
+        <input type="text" id="editName" value="${product.name || ''}">
+      </div>
+      <div class="field-group">
+        <label>Marque :</label>
+        <input type="text" id="editBrand" value="${product.brand || ''}">
+      </div>
+      <div class="field-group">
+        <label>Site :</label>
+        <input type="text" id="editSite" value="${product.site_name || ''}" disabled>
+      </div>
+      <div class="field-group">
+        <label>Poids :</label>
+        <input type="text" id="editWeight" value="${product.weight_raw || ''}">
+      </div>
+      <div class="button-row">
+        <button id="saveEditBtn" class="btn btn-save">💾 Sauvegarder</button>
+        <button id="closeEditBtn" class="btn btn-close">✖ Fermer</button>
+      </div>
+    </div>
+  `;
 
-    // 3. Récupération des éléments
-    const saveEditBtn = document.getElementById('saveEdit');
-    const closeEditBtn = document.getElementById('closeEdit');
-    const addHistoryBtn = document.getElementById('addHistoryBtn');
-    const historyTableBody = document.getElementById('historyTableBody');
-
-    if (!saveEditBtn || !closeEditBtn || !addHistoryBtn || !historyTableBody) {
-      console.error("Éléments manquants dans la popup !");
-      return;
-    }
-
-    // 4. Configuration du sélecteur de marque
-    if (window.setupBrandSelector) {
-      window.setupBrandSelector(currentEditProduct, 'edit-brand-selector-container', 'edit-brand-display');
-    }
-
-    // 5. Fonction pour afficher l'historique existant
-    function renderHistoryTable() {
-      historyTableBody.innerHTML = '';
-      if (!currentEditProduct.history || currentEditProduct.history.length === 0) {
-        historyTableBody.innerHTML = '<tr><td colspan="3">Aucun historique</td></tr>';
-        return;
-      }
-
-      // Tri par date décroissante
-      const sortedHistory = [...currentEditProduct.history].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      sortedHistory.forEach(entry => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${entry.date}</td>
-          <td>${entry.price.toFixed(2)} €</td>
-          <td><button class="deleteHistoryEntry" data-date="${entry.date}">✕</button></td>
-        `;
-        historyTableBody.appendChild(row);
-      });
-    }
-
-    // 6. Écouteur pour ajouter une nouvelle entrée d'historique
-    addHistoryBtn.onclick = () => {
-      const dateInput = document.getElementById('newHistoryDate');
-      const priceInput = document.getElementById('newHistoryPrice');
-
-      const date = dateInput.value;
-      const price = parseFloat(priceInput.value);
-
-      if (!date) {
-        alert("Veuillez sélectionner une date.");
-        return;
-      }
-
-      if (isNaN(price) || price <= 0) {
-        alert("Veuillez saisir un prix valide (ex: 2.50).");
-        return;
-      }
-
-      // Vérifie si la date existe déjà
-      const dateExists = currentEditProduct.history.some(entry => entry.date === date);
-      if (dateExists) {
-        alert(`Un prix est déjà enregistré pour la date du ${date}. Une seule entrée par date est autorisée.`);
-        return;
-      }
-
-      // Ajoute la nouvelle entrée
-      currentEditProduct.history.push({ date, price });
-      currentEditProduct.history.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      // Met à jour le tableau
-      renderHistoryTable();
-
-      // Réinitialise les champs
-      priceInput.value = '';
+  // ===== Écouteurs =====
+  document.getElementById('saveEditBtn').onclick = async () => {
+    const updatedProduct = {
+      id: product.id,
+      canonicalName: document.getElementById('editCanonical').value.trim(),
+      name: document.getElementById('editName').value.trim(),
+      brand: document.getElementById('editBrand').value.trim(),
+      site_name: product.site_name,
+      weight_raw: document.getElementById('editWeight').value.trim()
     };
 
-    // 7. Écouteur pour supprimer une entrée d'historique
-    historyTableBody.addEventListener('click', (e) => {
-      if (e.target.classList.contains('deleteHistoryEntry')) {
-        const dateToDelete = e.target.dataset.date;
-        currentEditProduct.history = currentEditProduct.history.filter(entry => entry.date !== dateToDelete);
-        renderHistoryTable();
-      }
-    });
+    if (!updatedProduct.name) return alert('Le nom du produit est requis !');
 
-    // 8. Affiche l'historique existant
-    renderHistoryTable();
+    try {
+      await window.api.upsertProduct(updatedProduct);
+      alert('Produit mis à jour ✅');
+      popup.style.display = 'none';
+      if (window.rendererLoadProducts) window.rendererLoadProducts();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la sauvegarde du produit.');
+    }
+  };
 
-    // 9. Écouteur pour Sauvegarder
-    saveEditBtn.onclick = async function() {
-      try {
-        // 1. Validation des champs principaux
-        const name = document.getElementById('editName').value.trim();
-        if (!name) throw new Error("Le nom est obligatoire");
-
-        // 2. Construction de l'objet produit
-        const updatedProduct = {
-          ...currentEditProduct,
-          name: name,
-          regular_price: parseFloat(document.getElementById('editPrice').value) || 0,
-          history: currentEditProduct.history.map(h => ({
-            date: h.date.includes('T') ? h.date : `${h.date}T00:00:00`,
-            price: h.price
-          }))
-        };
-
-        console.log("Produit à sauvegarder:", updatedProduct);
-
-        // 3. Appel à l'API
-        const result = await window.api.upsertProduct(updatedProduct);
-        if (!result?.success) {
-          throw new Error(result?.error || "Échec de la sauvegarde.");
-        }
-
-        // 4. Fermeture et rechargement
-        popup.classList.add('hidden');
-        if (window.rendererLoadProducts) window.rendererLoadProducts();
-
-      } catch (error) {
-        console.error("Erreur complète:", error);
-        alert(`Erreur: ${error.message}`);
-      }
-    };
-
-    // 10. Écouteur pour Annuler
-    closeEditBtn.onclick = () => {
-      popup.classList.add('hidden');
-    };
-
-    popup.classList.remove('hidden');
-
-  } catch (error) {
-    console.error("Erreur dans showEditPopup:", error);
-    alert(`Erreur: ${error.message}`);
-  }
+  document.getElementById('closeEditBtn').onclick = () => {
+    popup.style.display = 'none';
+  };
 }
 
-// Export global
+// ===== Exposer globalement pour renderer.js =====
 window.showEditPopup = showEditPopup;
+
+// ===== Styles sombres et modernes =====
+const style = document.createElement('style');
+style.textContent = `
+#editProductPopup {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #1e1e2f;
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.7);
+  width: 400px;
+  padding: 20px;
+  font-family: sans-serif;
+  flex-direction: column;
+}
+
+.product-edit-card h2 {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.field-group label {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.field-group input {
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  outline: none;
+  background-color: #2b2b3c;
+  color: #fff;
+}
+
+.field-group input:focus {
+  box-shadow: 0 0 5px #ff9a3c;
+  background-color: #33334d;
+}
+
+.button-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+}
+
+.btn {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  transform: scale(1.1);
+}
+
+.btn-save {
+  background: #3c9aff;
+  color: #fff;
+}
+
+.btn-close {
+  background: #ff4c4c;
+  color: #fff;
+}
+`;
+document.head.appendChild(style);
