@@ -15,107 +15,47 @@ let mainWindow;
 const server = express();
 server.use(bodyParser.json());
 server.use(express.static(path.join(__dirname, 'renderer')));
-
-server.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "renderer", "index.html"));
-});
-
-server.listen(3210, () => {
-  console.log("Serveur local démarré sur http://localhost:3210");
-});
+server.get("/", (req, res) => res.sendFile(path.join(__dirname, "renderer", "index.html")));
+server.listen(3210, () => console.log("Serveur local démarré sur http://localhost:3210"));
 
 // =========================
-// FENÊTRE ELECTRON (UNE SEULE DÉCLARATION)
+// FENÊTRE ELECTRON
 // =========================
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),  // Utilise le fichier principal
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
-  });
-
-  // Active les logs pour le preload
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error(`Échec du chargement du preload: ${errorDescription}`);
   });
 
   mainWindow.loadURL('http://localhost:3210');
 }
 
 app.whenReady().then(async () => {
-  try {
-    await database.init();
-    console.log("Database ready");
-    createWindow();
-  } catch (err) {
-    console.error("Erreur init database :", err);
-  }
+  await database.init();
+  createWindow();
 });
-
-// =========================
-// FONCTION DE NORMALISATION (inchangée)
-// =========================
-function normalizeText(str) {
-  if (!str) return "";
-  return str
-    .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[\s\-_]/g, "")
-    .replace(/[^\w]/g, "");
-}
 
 // =========================
 // IPC HANDLERS
 // =========================
 ipcMain.handle('scrape-product', async (event, url) => {
-  try {
-    return await scrapeProduct(url);
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
+  try { return await scrapeProduct(url); } 
+  catch (err) { return { success: false, error: err.message }; }
 });
 
-ipcMain.handle('get-products', async () => {
-  try {
-    return await database.getAllProducts();
-  } catch (err) {
-    console.error("Erreur get-products :", err);
-    return [];
-  }
-});
-
-ipcMain.handle('upsert-product', async (event, productData) => {
-  try {
-    // Met à jour le produit et son historique
-    const result = await upsertProduct(productData);
-    return result;
-  } catch (err) {
-    console.error("Erreur upsert-product :", err);
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('delete-products', async (event, productUrls) => {
-  try {
-    return await database.deleteProducts(productUrls);
-  } catch (err) {
-    console.error("Erreur delete-products :", err);
-    return { success: false, error: err.message };
-  }
-});
-
+ipcMain.handle('get-products', async () => await database.getAllProducts());
+ipcMain.handle('upsert-product', async (event, productData) => await upsertProduct(productData));
+ipcMain.handle('delete-products', async (event, productUrls) => await database.deleteProducts(productUrls));
 ipcMain.handle('get-brands', async () => {
   const db = await database.openDb();
   return new Promise((resolve, reject) => {
     db.all('SELECT DISTINCT brand_name FROM brands ORDER BY brand_name ASC', [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows.map(r => r.brand_name));
+      if (err) reject(err); else resolve(rows.map(r => r.brand_name));
     });
   });
 });
@@ -130,10 +70,7 @@ ipcMain.handle('get-canonical-suggestions', async (event, name) => {
        ORDER BY canonical_name
        LIMIT 10`,
       [`%${name}%`],
-      (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows.map(row => row.canonical_name));
-      }
+      (err, rows) => err ? reject(err) : resolve(rows.map(r => r.canonical_name))
     );
   });
 });
@@ -142,56 +79,80 @@ ipcMain.handle('get-brand-url', async (event, brand, site) => {
   const db = await database.openDb();
   const normalizedBrand = normalizeText(brand);
   const normalizedSite = normalizeText(site);
-
   return new Promise((resolve, reject) => {
-    db.all('SELECT brand_url FROM brands', [], (err, rows) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      const match = rows.find(row =>
-        normalizeText(row.brand_name) === normalizedBrand &&
-        normalizeText(row.site_name) === normalizedSite
-      );
-
+    db.all('SELECT brand_url, brand_name, site_name FROM brands', [], (err, rows) => {
+      if (err) reject(err);
+      const match = rows.find(r => normalizeText(r.brand_name) === normalizedBrand && normalizeText(r.site_name) === normalizedSite);
       resolve(match ? match.brand_url : null);
     });
   });
 });
 
-// NOUVEAU: Handler pour récupérer l'historique complet d'un produit
 ipcMain.handle('get-product-history', async (event, productId) => {
   const db = await database.openDb();
   return new Promise((resolve, reject) => {
     db.all(
-      `SELECT date, price FROM price_history
-       WHERE product_id = ?
-       ORDER BY date ASC`,
+      `SELECT date, price FROM price_history WHERE product_id = ? ORDER BY date ASC`,
       [productId],
-      (err, rows) => {
-        if (err) {
-          console.error("Erreur get-product-history:", err);
-          reject(err);
-        } else {
-          resolve(rows);
-        }
-      }
+      (err, rows) => err ? reject(err) : resolve(rows)
     );
   });
 });
 
 ipcMain.handle('open-in-window', async (event, url) => {
   try {
-    const childWindow = new BrowserWindow({
-      width: 1000,
-      height: 800,
-      webPreferences: { contextIsolation: true, nodeIntegration: false }
-    });
+    const childWindow = new BrowserWindow({ width:1000, height:800, webPreferences:{ contextIsolation:true, nodeIntegration:false }});
     await childWindow.loadURL(url);
-    return { success: true };
-  } catch (err) {
-    console.error("Erreur open-in-window :", err);
-    return { success: false, error: err.message };
+    return { success:true };
+  } catch (err) { return { success:false, error:err.message }; }
+});
+
+// =========================
+// NOUVEAU HANDLER : addOrUpdateHistory
+// =========================
+ipcMain.handle('add-or-update-history', async (event, productId, date, price) => {
+  const db = await database.openDb();
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO price_history(product_id, date, price)
+       VALUES (?, ?, ?)
+       ON CONFLICT(product_id, date) DO UPDATE SET price=excluded.price`,
+      [productId, date, price],
+      function(err) { if(err) reject(err); else resolve({ success:true }); }
+    );
+  });
+});
+
+// =========================
+// NOUVEAU HANDLER : scrapeAndComparePrice
+// =========================
+ipcMain.handle('scrape-and-compare-price', async (event, productUrl) => {
+  try {
+    const scraped = await scrapeProduct(productUrl);
+    if(!scraped.success) return { success:false, message: scraped.error };
+
+    const productId = scraped.data.id;
+    const lastEntry = await database.getLastPrice(productId);
+
+    const today = new Date().toISOString().split('T')[0];
+    const newPrice = scraped.data.regular_price;
+
+    if(!lastEntry || lastEntry.price !== newPrice) {
+      await database.addOrUpdateHistory(productId, today, newPrice);
+      return { success:true, message:"Nouveau prix", newPrice };
+    } else {
+      await database.addOrUpdateHistory(productId, today, newPrice);
+      return { success:true, message:"Pas de changement de prix", newPrice };
+    }
+  } catch(err) {
+    return { success:false, message:err.message };
   }
 });
+
+// =========================
+// UTILITAIRE
+// =========================
+function normalizeText(str) {
+  if (!str) return "";
+  return str.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s\-_]/g,"").replace(/[^\w]/g,"");
+}

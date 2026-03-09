@@ -1,8 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Exposition des fonctions API
 contextBridge.exposeInMainWorld('api', {
-  // Fonctions existantes
   scrapeProduct: (url) => ipcRenderer.invoke('scrape-product', url),
   getProducts: () => ipcRenderer.invoke('get-products'),
   upsertProduct: (rawData) => ipcRenderer.invoke('upsert-product', rawData),
@@ -13,14 +11,18 @@ contextBridge.exposeInMainWorld('api', {
   getProductHistory: (productId) => ipcRenderer.invoke('get-product-history', productId),
   openInWindow: (url) => ipcRenderer.invoke('open-in-window', url),
 
-  // Fonction de test
+  // ==============================
+  // NOUVELLES FONCTIONS POUR L'HISTORIQUE ET SCRAPING
+  // ==============================
+  addOrUpdateHistory: (productId, date, price) => ipcRenderer.invoke('add-or-update-history', productId, date, price),
+  scrapeAndComparePrice: (productUrl) => ipcRenderer.invoke('scrape-and-compare-price', productUrl),
+
   test: () => {
     console.log("Fonction de test appelée depuis le preload!");
     return 'Preload fonctionnel!';
   }
 });
 
-// Exposition des utilitaires
 contextBridge.exposeInMainWorld('utils', {
   extractBrandFromName: (name, brand) => {
     if (!name || !brand) return name;
@@ -63,5 +65,4 @@ contextBridge.exposeInMainWorld('utils', {
   }
 });
 
-// Log de vérification
-console.log("Preload script chargé avec succès!");
+console.log("Preload chargé avec succès !");
