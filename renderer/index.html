@@ -2,7 +2,6 @@
 <html lang="fr">
 
 <head>
-
 <meta charset="UTF-8">
 <title>CompApp</title>
 
@@ -10,13 +9,127 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<style>
+
+/* ===============================
+OVERLAY GLOBAL POUR LES POPUPS
+=============================== */
+
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  background: rgba(0,0,0,0.65);
+  z-index: 2000;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup-overlay.hidden {
+  display: none;
+}
+
+/* ===============================
+CONTENU POPUP
+=============================== */
+
+#popupContainer {
+
+  background: #2f343a;
+  padding: 25px;
+  border-radius: 12px;
+
+  width: 520px;
+  max-height: 90vh;
+
+  overflow-y: auto;
+
+  color: white;
+
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+}
+
+/* ===============================
+CHAMPS
+=============================== */
+
+.popup-field {
+  margin-bottom: 15px;
+}
+
+.popup-field label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.popup-field input,
+.popup-field select {
+
+  width: 100%;
+  padding: 8px;
+
+  background: #444;
+
+  border: none;
+  border-radius: 5px;
+
+  color: white;
+}
+
+/* ===============================
+BOUTONS
+=============================== */
+
+.popup-buttons {
+
+  margin-top: 20px;
+
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 10px;
+}
+
+.popup-btn {
+
+  padding: 8px 16px;
+
+  border: none;
+  border-radius: 6px;
+
+  cursor: pointer;
+}
+
+.btn-save {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-cancel {
+  background: #f44336;
+  color: white;
+}
+
+</style>
+
 </head>
+
 
 <body>
 
+
 <div class="app">
 
-<!-- SIDEBAR -->
+<!-- ===============================
+SIDEBAR
+=============================== -->
 
 <div class="sidebar">
 
@@ -36,7 +149,10 @@ Sélectionnés : <span id="selectionCount">0</span>
 
 </div>
 
-<!-- TABLE -->
+
+<!-- ===============================
+TABLEAU PRODUITS
+=============================== -->
 
 <div class="content">
 
@@ -70,15 +186,20 @@ Sélectionnés : <span id="selectionCount">0</span>
 
 </div>
 
-<!-- POPUP UNIVERSELLE -->
 
-<div id="appPopup" class="popup hidden">
+<!-- ===============================
+OVERLAY POPUP GLOBAL
+=============================== -->
 
-  <div id="popupContainer"></div>
+<div id="popupOverlay" class="popup-overlay hidden">
+
+<div id="popupContainer"></div>
 
 </div>
+
 
 <script type="module" src="renderer.js"></script>
 
 </body>
+
 </html>

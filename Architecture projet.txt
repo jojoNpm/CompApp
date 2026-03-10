@@ -8,9 +8,17 @@ CompApp/
 ├── /renderer
 │   ├── index.html
 │   ├── renderer.js
-│   └── style.css
+│   ├── style.css
+│   └── /popup
+│       ├── chart-popup.js
+│       ├── edit-product.js
+│       ├── history-popup.js
+│       ├── popup-manager.js
+│       ├── popup-utils.js
+│       └── scraped-product.js│
 │
 ├── /services
+│   ├── brandService.js
 │   ├── productService.js
 │   ├── canonicalService.js
 │   ├── scrapingService.js
@@ -20,13 +28,13 @@ CompApp/
 │       ├── intermarche.js
 │       ├── carrefour.js
 │       ├── vegetalfood.js
-│       ├── config.json
+│       ├── config.json (pour scrape intermaché)
 │       └── chronodrive.js
 │
 ├── /db
 │   ├── database.js
 │   ├── insert_brands.js
-│   └── initDatabase.js
+│   └── products.db
 │
 ├── /extension
 │   ├── manifest.json
@@ -38,5 +46,3 @@ CompApp/
 └── /charts
     └── chartUtils.js
 
-
-Faire graphique historique de prix

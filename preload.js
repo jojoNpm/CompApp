@@ -45,8 +45,7 @@ contextBridge.exposeInMainWorld('utils', {
     if (!name) return "";
     const ignoredWords = [
       'végétal', 'végétales', 'végétarien', 'végétariennes',
-      'veggie', 'vegan', 'vegetaux', 'vegetal', 'gr', 'kg', ' g ',
-      'bio', 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'et', 'ou'
+      'veggie', 'vegan', 'vegetaux', 'vegetal', 'gr', 'kg', ' g '
     ];
     let cleaned = name.toLowerCase();
     ignoredWords.forEach(word => {

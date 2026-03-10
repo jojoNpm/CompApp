@@ -1,198 +1,275 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser');
 
-// ===============================
-// IMPORTS DES SERVICES (avant tout le reste)
-// ===============================
 const database = require('./db/database');
 const { scrapeProduct } = require('./services/scrapingService');
 const { upsertProduct } = require('./services/productService');
 const { getCanonicalSuggestions } = require('./services/canonicalService');
 
-// ===============================
-// VARIABLES GLOBALES
-// ===============================
 let mainWindow;
 
-// ===============================
-// FONCTIONS UTILITAIRES
-// ===============================
-function normalizeText(str) {
-  if (!str) return "";
-  return str.toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[\s\-_]/g, "")
-    .replace(/[^\w]/g, "");
-}
+/* ===============================
+IPC HANDLERS
+=============================== */
 
-// ===============================
-// ENREGISTREMENT DES HANDLERS IPC
-// ===============================
 function registerIpcHandlers() {
-  console.log("Enregistrement des handlers IPC...");
 
-  // Produits
+  console.log("[MAIN] Enregistrement des handlers IPC...");
+
+
+  /* SCRAPE PRODUIT */
+
   ipcMain.handle('scrape-product', async (event, url) => {
+
     try {
-      console.log("Handler 'scrape-product' appelé avec URL:", url);
+
+      console.log("[MAIN] scrape-product:", url);
+
       return await scrapeProduct(url);
+
     } catch (err) {
-      console.error("Erreur dans 'scrape-product':", err);
-      return { success: false, error: err.message };
+
+      console.error(err);
+
+      return { success:false, error:err.message };
+
     }
+
   });
+
+
+  /* RECUP PRODUITS */
 
   ipcMain.handle('get-products', async () => {
+
     try {
+
       return await database.getAllProducts();
+
     } catch (err) {
-      console.error("Erreur dans 'get-products':", err);
+
+      console.error(err);
+
       return [];
+
     }
+
   });
+
+
+  /* UPDATE PRODUIT */
 
   ipcMain.handle('upsert-product', async (event, productData) => {
-    console.log("Handler 'upsert-product' appelé avec:", productData);
+
     try {
+
+      console.log("[MAIN] upsert-product:", productData);
+
       return await upsertProduct(productData);
-    } catch (err) {
-      console.error("Erreur dans 'upsert-product':", err);
-      return { success: false, error: err.message };
+
     }
+
+    catch (error) {
+
+      console.error(error);
+
+      return { success:false, error:error.message };
+
+    }
+
   });
+
+
+  /* DELETE PRODUITS */
 
   ipcMain.handle('delete-products', async (event, urls) => {
+
     try {
+
       return await database.deleteProducts(urls);
-    } catch (err) {
-      console.error("Erreur dans 'delete-products':", err);
-      return { success: false, error: err.message };
+
     }
-  });
 
-  // Marques et suggestions
-  ipcMain.handle('get-brands', async () => {
-    const db = await database.openDb();
-    return new Promise((resolve, reject) => {
-      db.all('SELECT DISTINCT brand_name FROM brands ORDER BY brand_name ASC', [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows.map(r => r.brand_name));
-      });
-    });
-  });
+    catch (err) {
 
-  ipcMain.handle('get-canonical-suggestions', async (event, name) => {
-    try {
-      return await getCanonicalSuggestions(name);
-    } catch (err) {
-      console.error("Erreur dans 'get-canonical-suggestions':", err);
-      return [];
+      console.error(err);
+
+      return { success:false, error:err.message };
+
     }
+
   });
 
-  ipcMain.handle('get-brand-url', async (event, brand, site) => {
-    const db = await database.openDb();
-    const normalizedBrand = normalizeText(brand);
-    const normalizedSite = normalizeText(site);
-    return new Promise((resolve, reject) => {
-      db.all('SELECT brand_url FROM brands', [], (err, rows) => {
-        if (err) reject(err);
-        else {
-          const match = rows.find(row =>
-            normalizeText(row.brand_name) === normalizedBrand &&
-            normalizeText(row.site_name) === normalizedSite
-          );
-          resolve(match ? match.brand_url : null);
-        }
-      });
-    });
-  });
 
-  // Historique et graphiques
-  ipcMain.handle('get-product-history', async (event, productId) => {
-    const db = await database.openDb();
-    return new Promise((resolve, reject) => {
-      db.all(
-        `SELECT date, price FROM price_history WHERE product_id = ? ORDER BY date ASC`,
-        [productId],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        }
-      );
-    });
-  });
+  /* OUVRIR URL PRODUIT */
 
   ipcMain.handle('open-in-window', async (event, url) => {
+
     try {
-      const childWindow = new BrowserWindow({
-        width: 1000,
-        height: 800,
-        webPreferences: {
-          contextIsolation: true,
-          nodeIntegration: false
-        }
-      });
-      await childWindow.loadURL(url);
-      return { success: true };
-    } catch (err) {
-      console.error("Erreur dans 'open-in-window':", err);
-      return { success: false, error: err.message };
+
+      await shell.openExternal(url);
+
+      return { success:true };
+
     }
+
+    catch (err) {
+
+      console.error(err);
+
+      return { success:false, error:err.message };
+
+    }
+
   });
 
-  console.log("Tous les handlers IPC enregistrés avec succès !");
+
+  /* URL MARQUE */
+
+  ipcMain.handle('get-brand-url', async (event, brand) => {
+
+    try {
+
+      const url = await database.getBrandUrl(brand);
+
+      return { success:true, url };
+
+    }
+
+    catch (err) {
+
+      console.error(err);
+
+      return { success:false, error:err.message };
+
+    }
+
+  });
+
+
+  /* SUGGESTIONS CANONIQUES */
+
+  ipcMain.handle('get-canonical-suggestions', async (event, text) => {
+
+    try {
+
+      const suggestions = await getCanonicalSuggestions(text);
+
+      return { success:true, suggestions };
+
+    }
+
+    catch (err) {
+
+      console.error(err);
+
+      return { success:false, error:err.message };
+
+    }
+
+  });
+
+
+  console.log("[MAIN] Handlers IPC enregistrés");
+
 }
 
-// ===============================
-// SERVEUR EXPRESS
-// ===============================
-const server = express();
-server.use(bodyParser.json());
-server.use(express.static(path.join(__dirname, 'renderer')));
-server.get("/", (req, res) => res.sendFile(path.join(__dirname, "renderer", "index.html")));
-server.listen(3210, () => console.log("Serveur local démarré sur http://localhost:3210"));
 
-// ===============================
-// CRÉATION DE LA FENÊTRE ELECTRON
-// ===============================
-function createWindow() {
-  // Enregistre les handlers IPC avant de créer la fenêtre
-  registerIpcHandlers();
+
+/* ===============================
+SERVEUR EXPRESS
+=============================== */
+
+function createServer() {
+
+  const server = express();
+
+  server.use(bodyParser.json());
+
+  server.use(express.static(path.join(__dirname,'renderer')));
+
+  server.get("/", (req,res)=>{
+
+    res.sendFile(path.join(__dirname,"renderer","index.html"));
+
+  });
+
+  return server.listen(3210,()=>{
+
+    console.log("[MAIN] http://localhost:3210");
+
+  });
+
+}
+
+
+
+/* ===============================
+FENETRE ELECTRON
+=============================== */
+
+function createElectronWindow(){
 
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
+
+    width:1200,
+    height:800,
+
+    webPreferences:{
+
+      preload:path.join(__dirname,'preload.js'),
+      contextIsolation:true,
+      nodeIntegration:false
+
     }
+
   });
 
   mainWindow.loadURL('http://localhost:3210');
-  console.log("Fenêtre Electron créée avec succès !");
+
 }
 
-// ===============================
-// INITIALISATION DE L'APPLICATION
-// ===============================
-app.whenReady().then(async () => {
-  try {
-    await database.init();
-    console.log("Base de données initialisée avec succès !");
-    createWindow();
-  } catch (err) {
-    console.error("Erreur d'initialisation de la base de données:", err);
-    app.quit();
-  }
-});
 
-// Gestion de la fermeture de l'application
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+
+/* ===============================
+INITIALISATION
+=============================== */
+
+async function initializeApp(){
+
+  try{
+
+    console.log("[MAIN] Init DB");
+
+    await database.init();
+
+    registerIpcHandlers();
+
+    createServer();
+
+    createElectronWindow();
+
+  }
+
+  catch(err){
+
+    console.error(err);
+
+    app.quit();
+
+  }
+
+}
+
+
+
+app.whenReady().then(initializeApp);
+
+
+app.on('window-all-closed',()=>{
+
+  if(process.platform !== 'darwin') app.quit();
+
 });
