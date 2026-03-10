@@ -1,148 +1,94 @@
 // ===============================
-// POPUP ÉDITION PRODUIT
+// POPUP HISTORIQUE AVEC ONGLETS
 // ===============================
+let historyChartInstance = null;
 
-let currentEditProduct = null;
+async function showHistoryPopup(product) {
+  const popup = document.getElementById('historyPopup');
+  popup.innerHTML = `
+    <div class="popupContent" style="width: 900px;">
+      <h2>Historique des prix - ${product.name}</h2>
 
-function ensurePopupExists() {
-  let popup = document.getElementById("editPopup");
+      <div class="history-tabs">
+        <button class="tab-button active" data-tab="table">Tableau</button>
+        <button class="tab-button" data-tab="chart">Graphique</button>
+      </div>
 
-  if (!popup) {
-    popup = document.createElement("div");
-    popup.id = "editPopup";
-    popup.className = "popup hidden";
+      <div class="tab-content active" data-tab="table">
+        <table class="history-table">
+          <thead><tr><th>Date</th><th>Prix (€)</th></tr></thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
 
-    popup.style.position = "fixed";
-    popup.style.top = "0";
-    popup.style.left = "0";
-    popup.style.width = "100%";
-    popup.style.height = "100%";
-    popup.style.background = "rgba(0,0,0,0.6)";
-    popup.style.display = "flex";
-    popup.style.alignItems = "center";
-    popup.style.justifyContent = "center";
-    popup.style.zIndex = "9999";
+      <div class="tab-content" data-tab="chart">
+        <canvas id="historyChart" width="800" height="400"></canvas>
+      </div>
 
-    document.body.appendChild(popup);
-  }
+      <button id="closeHistoryPopup" class="btn delete">Fermer</button>
+    </div>
+  `;
 
-  return popup;
-}
-
-async function showEditPopup(product) {
   try {
+    const fullHistory = await window.api.getProductHistory(product.id);
 
-    const popup = ensurePopupExists();
+    // Tableau
+    const tableBody = document.getElementById('historyTableBody');
+    tableBody.innerHTML = fullHistory.length > 0 ?
+      fullHistory.map(h => `
+        <tr>
+          <td>${h.date.split('T')[0]}</td>
+          <td>${window.utils.formatPrice(h.price)}</td>
+        </tr>
+      `).join('') :
+      '<tr><td colspan="2">Aucun historique disponible</td></tr>';
 
-    product.name = window.utils.extractBrandFromName(product.name, product.brand);
-    product.brand = window.utils.normalizeBrand(product.brand);
+    // Graphique
+    if (fullHistory.length > 0) {
+      const ctx = document.getElementById('historyChart');
+      if (historyChartInstance) historyChartInstance.destroy();
 
-    currentEditProduct = { ...product };
-
-    if (!currentEditProduct.canonicalName) {
-      currentEditProduct.canonicalName =
-        window.utils.generateCanonicalName(product.name);
+      historyChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: fullHistory.map(h => h.date.split('T')[0]),
+          datasets: [{
+            label: 'Prix (€)',
+            data: fullHistory.map(h => h.price),
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+          }]
+        }
+      });
     }
 
-    popup.innerHTML = `
-      <div style="
-        background:#1e1e1e;
-        padding:25px;
-        border-radius:10px;
-        width:420px;
-        color:white;
-        box-shadow:0 0 20px rgba(0,0,0,0.5);
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-      ">
+    // Gestion des onglets
+    document.querySelectorAll('.tab-button').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab-button, .tab-content').forEach(el => {
+          el.classList.remove('active');
+        });
+        button.classList.add('active');
+        document.querySelector(`.tab-content[data-tab="${button.dataset.tab}"]`).classList.add('active');
+      });
+    });
 
-        <h2 style="margin-top:0;">Modifier produit</h2>
-
-        <label>Nom produit</label>
-        <input id="editName" value="${currentEditProduct.name}">
-
-        <label>Marque</label>
-        <input id="editBrand" value="${currentEditProduct.brand}">
-
-        <label>Prix (€)</label>
-        <input id="editPrice" type="number" step="0.01"
-        value="${currentEditProduct.regular_price || ""}">
-
-        <label>Poids</label>
-        <input id="editWeight" value="${currentEditProduct.weight_raw || ""}">
-
-        <label>Prix/kg</label>
-        <input disabled value="${currentEditProduct.price_per_kg || ""}">
-
-        <label>Nom canonique</label>
-        <input id="editCanonical"
-        value="${currentEditProduct.canonicalName || ""}">
-
-        <div style="
-          display:flex;
-          justify-content:flex-end;
-          gap:10px;
-          margin-top:15px;
-        ">
-          <button id="closeEdit">Annuler</button>
-          <button id="saveEdit">Sauvegarder</button>
-        </div>
-
-      </div>
-    `;
-
-    popup.classList.remove("hidden");
-
-    // ======================
-    // BOUTON ANNULER
-    // ======================
-
-    document.getElementById("closeEdit").onclick = () => {
-      popup.classList.add("hidden");
-    };
-
-    // ======================
-    // BOUTON SAUVEGARDER
-    // ======================
-
-    document.getElementById("saveEdit").onclick = async () => {
-      try {
-
-        const updatedProduct = {
-          ...currentEditProduct,
-          name: document.getElementById("editName").value.trim(),
-          brand: document.getElementById("editBrand").value.trim(),
-          regular_price: parseFloat(
-            document.getElementById("editPrice").value
-          ),
-          weight_raw: document.getElementById("editWeight").value.trim(),
-          canonicalName: document
-            .getElementById("editCanonical")
-            .value.trim()
-        };
-
-        const result = await window.api.upsertProduct(updatedProduct);
-
-        if (!result || !result.success) {
-          throw new Error(result?.error || "Erreur sauvegarde");
-        }
-
-        popup.classList.add("hidden");
-
-        if (window.rendererLoadProducts) {
-          window.rendererLoadProducts();
-        }
-
-      } catch (err) {
-        console.error(err);
-        alert("Erreur sauvegarde : " + err.message);
+    document.getElementById('closeHistoryPopup').onclick = () => {
+      popup.classList.add('hidden');
+      if (historyChartInstance) {
+        historyChartInstance.destroy();
+        historyChartInstance = null;
       }
     };
 
-  } catch (err) {
-    console.error("Erreur showEditPopup:", err);
+    popup.classList.remove('hidden');
+
+  } catch (error) {
+    console.error("Erreur:", error);
+    popup.innerHTML = `<div class="popupContent"><h2>Erreur</h2><p>${error.message}</p></div>`;
+    document.getElementById('closeHistoryPopup').onclick = () => popup.classList.add('hidden');
   }
 }
 
-window.showEditPopup = showEditPopup;
+// Export
+window.showHistoryPopup = showHistoryPopup;

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
+
 <meta charset="UTF-8">
 <title>CompApp</title>
 
@@ -15,6 +17,7 @@
 <div class="app">
 
 <!-- SIDEBAR -->
+
 <div class="sidebar">
 
 <textarea id="product-url" placeholder="Coller l'URL du produit ici..." rows="3"></textarea>
@@ -33,13 +36,14 @@ Sélectionnés : <span id="selectionCount">0</span>
 
 </div>
 
+<!-- TABLE -->
 
-<!-- TABLEAU -->
 <div class="content">
 
 <table id="products-table">
 
 <thead>
+
 <tr>
 
 <th><input type="checkbox" id="check-all"></th>
@@ -55,6 +59,7 @@ Sélectionnés : <span id="selectionCount">0</span>
 <th>Actions</th>
 
 </tr>
+
 </thead>
 
 <tbody id="products-body"></tbody>
@@ -62,69 +67,16 @@ Sélectionnés : <span id="selectionCount">0</span>
 </table>
 
 </div>
-</div>
-
-
-<!-- POPUP PRODUIT SCRAPÉ -->
-<div id="popup" class="popup hidden"></div>
-
-
-<!-- POPUP EDIT PRODUIT (NOUVELLE VERSION) -->
-<div id="editProductPopup" class="popup hidden">
-
-<div id="editProductContainer"></div>
 
 </div>
 
+<!-- POPUP UNIVERSELLE -->
 
-<!-- POPUP HISTORIQUE -->
-<div id="historyPopup" class="popup hidden">
+<div id="appPopup" class="popup hidden">
 
-<div class="popupContent historyLayout">
-
-<div class="historyTop">
-
-<div id="historyCardContainer"></div>
-
-<div id="historyFormContainer"></div>
+  <div id="popupContainer"></div>
 
 </div>
-
-<table class="historyTable">
-
-<thead>
-<tr>
-
-<th>Date</th>
-<th>Prix</th>
-
-</tr>
-</thead>
-
-<tbody id="historyTableBody"></tbody>
-
-</table>
-
-</div>
-
-</div>
-
-
-<!-- POPUP GRAPHIQUE -->
-<div id="chartPopup" class="popup hidden">
-
-<div class="popupContent" style="width:800px;height:500px;">
-
-<h2 id="chartTitle">Historique des prix</h2>
-
-<canvas id="priceChart" width="800" height="400"></canvas>
-
-<button id="closeChart" class="btn delete" style="margin-top:10px;">Fermer</button>
-
-</div>
-
-</div>
-
 
 <script type="module" src="renderer.js"></script>
 

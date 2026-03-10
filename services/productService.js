@@ -50,10 +50,10 @@ async function upsertProduct(rawData) {
         for (const entry of productData.history) {
           if (entry.price && entry.date) {
             console.log(`upsertProduct - Ajout de ${entry.price}€ le ${entry.date}`);
-            await db.run(`
-              INSERT INTO price_history (product_id, price, date)
-              VALUES (?, ?, ?)
-            `, [productId, entry.price, entry.date]);
+            await db.run(
+              `INSERT INTO price_history (product_id, price, date) VALUES (?, ?, ?)`,
+              [productId, entry.price, entry.date]
+            );
           }
         }
         historyUpdated = true;
@@ -62,7 +62,7 @@ async function upsertProduct(rawData) {
       }
     }
 
-    // 7. Retour complet avec statut (NOUVEAU)
+    // 7. Retour complet avec statut
     return {
       success: true,
       productId: productId,
@@ -82,21 +82,6 @@ async function upsertProduct(rawData) {
   }
 }
 
-/**
- * Met à jour l'historique des prix d'un produit (à supprimer si inutilisée)
- */
-async function updateProductHistory(productId, newPriceData) {
-  // Cette fonction peut être supprimée si tu n'en as plus besoin
-  const product = await db.getProductById(productId);
-  const history = JSON.parse(product.history || '[]');
-  history.push({
-    date: new Date().toISOString().split('T')[0],
-    ...newPriceData
-  });
-  await db.updateProductHistory(productId, JSON.stringify(history));
-}
-
 module.exports = {
   upsertProduct,
-  updateProductHistory  // Peut être supprimée si inutilisée
 };
