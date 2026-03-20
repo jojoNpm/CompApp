@@ -34,7 +34,7 @@ function openDb() {
 }
 
 /* ======================
-   INITIALISATION (ajout colonne image BLOB)
+   INITIALISATION (ajout colonne image BLOB et image_url)
 ====================== */
 async function init() {
   const database = await openDb();
@@ -63,7 +63,7 @@ async function init() {
         )
       `);
 
-      // Table products (avec image BLOB)
+      // Table products (avec image BLOB et image_url)
       database.run(`
         CREATE TABLE IF NOT EXISTS products(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,6 +80,7 @@ async function init() {
           weight_raw TEXT,
           availability TEXT,
           image BLOB,
+          image_url TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           last_seen TEXT,
           FOREIGN KEY(brand_id) REFERENCES brands(id),
@@ -139,10 +140,10 @@ function generateCanonicalName(name = '') {
     const regex = new RegExp(`\\b${word}\\b`, 'gi');
     cleaned = cleaned.replace(regex, '');
   });
-  cleaned = cleaned.replace(/\d+(\.\d+)?\s?(g|kg|ml|cl|l)\b/gi, '');
+  cleaned = cleaned.replace(/\d+(\.\d+)?\s?(g|kg|ml|cl|l)\\b/gi, '');
   cleaned = cleaned
-    .replace(/\([^)]*\)/g, '')
-    .replace(/[-–—]/g, ' ')
+    .replace(/(\.?[^()]*\(\s*[^()]*\s*\))/g, '')
+    .replace(/[-\–—]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   return cleaned;
@@ -210,7 +211,7 @@ async function getOrCreateBrand(brandName, siteName, brandUrl = '') {
 }
 
 /* ======================
-   INSERT PRODUIT (image BLOB)
+   INSERT PRODUIT (image BLOB et image_url)
 ====================== */
 async function insertProduct(product) {
   const db = await openDb();
@@ -233,12 +234,12 @@ async function insertProduct(product) {
       db.run(
         `UPDATE products SET
           canonical_id=?, brand_id=?, name=?, product_url=?, regular_price=?, promo_price=?,
-          promo_percent=?, price_per_kg=?, weight_raw=?, availability=?, image=?, last_seen=?
+          promo_percent=?, price_per_kg=?, weight_raw=?, availability=?, image=?, image_url=?, last_seen=?, site_name=?
         WHERE id=?`,
         [
           canonicalId, brandId, product.name, product.product_url, product.regular_price,
           product.promo_price, product.promo_percent, product.price_per_kg, product.weight_raw,
-          product.availability, product.image || null, today, existing.id
+          product.availability, product.image || null, product.image_url || null, today, product.site_name, existing.id
         ],
         err => err ? reject(err) : resolve()
       );
@@ -251,12 +252,12 @@ async function insertProduct(product) {
       `INSERT INTO products(
         canonical_id, brand_id, name, site_name, product_url, product_reference,
         regular_price, promo_price, promo_percent, price_per_kg, weight_raw,
-        availability, image, last_seen
-      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        availability, image, image_url, last_seen
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        canonicalId, brandId, product.name, siteName, product.product_url, reference,
+        canonicalId, brandId, product.name, product.site_name, product.product_url, reference,
         product.regular_price, product.promo_price, product.promo_percent, product.price_per_kg,
-        product.weight_raw, product.availability, product.image || null, today
+        product.weight_raw, product.availability, product.image || null, product.image_url || null, today
       ],
       function(err) {
         if (err) reject(err);
@@ -270,7 +271,7 @@ async function insertProduct(product) {
 }
 
 /* ======================
-   UPSERT PRODUIT (image BLOB)
+   UPSERT PRODUIT (image BLOB et image_url)
 ====================== */
 async function upsertProduct(productData) {
   const db = await openDb();
@@ -308,13 +309,12 @@ async function upsertProduct(productData) {
         `UPDATE products SET
           name=?, canonical_id=?, brand_id=?, site_name=?, product_url=?,
           regular_price=?, promo_price=?, promo_percent=?, price_per_kg=?,
-          weight_raw=?, availability=?, image=?, last_seen=?
+          weight_raw=?, availability=?, image=?, image_url=?, last_seen=?, site_name=?
         WHERE id=?`,
         [
           productData.name, canonicalId, brandId, productData.site_name, productData.product_url,
-          productData.regular_price || 0, productData.promo_price, productData.promo_percent || 0,
-          productData.price_per_kg, productData.weight_raw, productData.availability,
-          productData.image || null, today, productId
+          productData.regular_price || 0, productData.promo_price, productData.promo_percent || 0, productData.price_per_kg,
+          productData.weight_raw, productData.availability, productData.image || null, productData.image_url || null, today, productData.site_name, productId
         ],
         err => err ? reject(err) : resolve()
       );
@@ -325,13 +325,13 @@ async function upsertProduct(productData) {
         `INSERT INTO products(
           canonical_id, brand_id, name, site_name, product_url, product_reference,
           regular_price, promo_price, promo_percent, price_per_kg, weight_raw,
-          availability, image, last_seen
-        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          availability, image, image_url, last_seen
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           canonicalId, brandId, productData.name, productData.site_name, productData.product_url,
           productData.product_reference, productData.regular_price || 0, productData.promo_price,
           productData.promo_percent || 0, productData.price_per_kg, productData.weight_raw,
-          productData.availability, productData.image || null, today
+          productData.availability, productData.image || null, productData.image_url || null, today
         ],
         function(err) { if (err) reject(err); else resolve(this.lastID); }
       );
