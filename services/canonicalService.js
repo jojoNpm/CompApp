@@ -6,14 +6,14 @@ const brandService = require('./brandService');
  * Crée ou récupère un bloc canonique
  */
 async function getOrCreateCanonicalBlock(productName, brandName) {
-  const canonicalName = utils.generateCanonicalName(productName);
+  const canonical_name = utils.generateCanonicalName(productName);
   const dbInstance = await db.openDb();
 
   // Vérifier si le bloc existe déjà
   const existing = await new Promise((resolve, reject) => {
     dbInstance.get(
       `SELECT id FROM canonical_products WHERE canonical_name = ? AND brand_name = ?`,
-      [canonicalName, brandName],
+      [canonical_name, brandName],
       (err, row) => {
         if (err) reject(err);
         else resolve(row ? row.id : null);
@@ -27,7 +27,7 @@ async function getOrCreateCanonicalBlock(productName, brandName) {
   return await new Promise((resolve, reject) => {
     dbInstance.run(
       `INSERT INTO canonical_products (canonical_name, brand_name) VALUES (?, ?)`,
-      [canonicalName, brandName],
+      [canonical_name, brandName],
       function(err) {
         if (err) reject(err);
         else resolve(this.lastID);
@@ -40,7 +40,7 @@ async function getOrCreateCanonicalBlock(productName, brandName) {
  * Récupère les suggestions de noms canoniques
  */
 async function getCanonicalSuggestions(productName) {
-  const canonicalName = utils.generateCanonicalName(productName);
+  const canonical_name = utils.generateCanonicalName(productName);
   const dbInstance = await db.openDb();
 
   return await new Promise((resolve, reject) => {
@@ -50,7 +50,7 @@ async function getCanonicalSuggestions(productName) {
        WHERE canonical_name LIKE ?
        ORDER BY canonical_name
        LIMIT 10`,
-      [`%${canonicalName}%`],
+      [`%${canonical_name}%`],
       (err, rows) => {
         if (err) reject(err);
         else resolve(rows.map(row => row.canonical_name));
@@ -69,7 +69,7 @@ async function detectBrandFromName(productName) {
 
 module.exports = {
   getOrCreateCanonicalBlock,
-  getCanonicalSuggestions, // Nouvelle fonction exportée
+  getCanonicalSuggestions,
   associateProductToBlock: async (productId, canonicalId) => {
     const dbInstance = await db.openDb();
     await new Promise((resolve, reject) => {

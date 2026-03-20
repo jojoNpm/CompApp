@@ -1,26 +1,48 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.join(__dirname, 'products.db');
+const dbPath = path.join(__dirname, 'database.db');
+
+if (fs.existsSync(dbPath)) {
+  console.log("[DB REAL PATH]", fs.realpathSync(dbPath));
+} else {
+  console.log("[DB REAL PATH] fichier inexistant (sera créé)");
+}
+
+console.log("[DB] Path:", dbPath);
+
 let db;
 
+/* ======================
+   OUVERTURE DB
+====================== */
 function openDb() {
   return new Promise((resolve, reject) => {
     if (db) return resolve(db);
     db = new sqlite3.Database(dbPath, (err) => {
-      if (err) reject(err);
-      else resolve(db);
+      if (err) {
+        console.error("[DB] Erreur ouverture:", err);
+        reject(err);
+      } else {
+        db.run("PRAGMA foreign_keys = ON");
+        console.log("[DB] Base ouverte");
+        resolve(db);
+      }
     });
   });
 }
 
+/* ======================
+   INITIALISATION (ajout colonne image BLOB)
+====================== */
 async function init() {
   const database = await openDb();
   return new Promise((resolve, reject) => {
     database.serialize(() => {
-
+      // Table brands
       database.run(`
-        CREATE TABLE IF NOT EXISTS brands (
+        CREATE TABLE IF NOT EXISTS brands(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           brand_name TEXT NOT NULL,
           site_name TEXT NOT NULL,
@@ -30,8 +52,9 @@ async function init() {
         )
       `);
 
+      // Table canonical_products
       database.run(`
-        CREATE TABLE IF NOT EXISTS canonical_products (
+        CREATE TABLE IF NOT EXISTS canonical_products(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           canonical_name TEXT NOT NULL,
           brand_name TEXT NOT NULL,
@@ -40,14 +63,15 @@ async function init() {
         )
       `);
 
+      // Table products (avec image BLOB)
       database.run(`
-        CREATE TABLE IF NOT EXISTS products (
+        CREATE TABLE IF NOT EXISTS products(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           canonical_id INTEGER,
-          brand_id INTEGER NOT NULL,
-          name TEXT NOT NULL,
-          site_name TEXT NOT NULL,
-          product_url TEXT UNIQUE NOT NULL,
+          brand_id INTEGER,
+          name TEXT,
+          site_name TEXT,
+          product_url TEXT UNIQUE,
           product_reference TEXT UNIQUE,
           regular_price REAL,
           promo_price REAL,
@@ -55,32 +79,31 @@ async function init() {
           price_per_kg REAL,
           weight_raw TEXT,
           availability TEXT,
-          availability_status TEXT,
+          image BLOB,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           last_seen TEXT,
-          FOREIGN KEY (brand_id) REFERENCES brands(id),
-          FOREIGN KEY (canonical_id) REFERENCES canonical_products(id)
+          FOREIGN KEY(brand_id) REFERENCES brands(id),
+          FOREIGN KEY(canonical_id) REFERENCES canonical_products(id)
         )
       `);
 
+      // Table price_history
       database.run(`
-        CREATE TABLE IF NOT EXISTS price_history (
+        CREATE TABLE IF NOT EXISTS price_history(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          product_id INTEGER NOT NULL,
-          price REAL NOT NULL,
-          date TEXT NOT NULL,
-          FOREIGN KEY (product_id) REFERENCES products(id),
+          product_id INTEGER,
+          price REAL,
+          promo_price REAL,
+          date DATETIME,
+          FOREIGN KEY(product_id) REFERENCES products(id),
           UNIQUE(product_id, date)
         )
       `);
 
-      // Index pour accélérer les recherches
-      database.run(`CREATE INDEX IF NOT EXISTS idx_brands_name_site ON brands(brand_name, site_name)`);
-      database.run(`CREATE INDEX IF NOT EXISTS idx_products_brand_id ON products(brand_id)`);
-      database.run(`CREATE INDEX IF NOT EXISTS idx_products_canonical_id ON products(canonical_id)`);
-      database.run(`CREATE INDEX IF NOT EXISTS idx_products_reference ON products(product_reference)`);
-      database.run(`CREATE INDEX IF NOT EXISTS idx_price_history_product_id ON price_history(product_id)`);
-      database.run(`CREATE INDEX IF NOT EXISTS idx_price_history_date ON price_history(date)`);
+      // Index
+      database.run(`CREATE INDEX IF NOT EXISTS idx_products_canonical ON products(canonical_id)`);
+      database.run(`CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id)`);
+      database.run(`CREATE INDEX IF NOT EXISTS idx_products_url ON products(product_url)`);
 
       resolve();
     });
@@ -103,37 +126,33 @@ function slugify(text = '') {
 }
 
 function generateCanonicalName(name = '') {
-  const ignoredWords = ['végétal', 'végétales', 'végétaux', 'végétarien', 'végétariennes', 'veggie', 'vegan', 'bio','gr','kg',' g '];
-  let cleaned = name;
-
+  if (!name) return "";
+  const ignoredWords = [
+    'végétal', 'végétales', 'végétarien', 'végétariennes',
+    'veggie', 'vegan', 'vegetaux', 'vegetal'
+  ];
+  let cleaned = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
   ignoredWords.forEach(word => {
     const regex = new RegExp(`\\b${word}\\b`, 'gi');
     cleaned = cleaned.replace(regex, '');
   });
-
-  cleaned = cleaned.replace(/\([^)]*\)/g, '');
-  cleaned = cleaned.replace(/[-–—]/g, ' ');
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
-
-  const articles = ['le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'et', 'ou'];
-  articles.forEach(article => {
-    const regex = new RegExp(`\\b${article}\\b`, 'gi');
-    cleaned = cleaned.replace(regex, '');
-  });
-
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
-  cleaned = cleaned.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  cleaned = cleaned.toLowerCase();
-
+  cleaned = cleaned.replace(/\d+(\.\d+)?\s?(g|kg|ml|cl|l)\b/gi, '');
+  cleaned = cleaned
+    .replace(/\([^)]*\)/g, '')
+    .replace(/[-–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   return cleaned;
 }
 
-function generateProductReference(productData) {
-  const canonical = generateCanonicalName(productData.name);
+function generateProductReference(product) {
+  const canonical = generateCanonicalName(product.name);
   const canonicalSlug = slugify(canonical);
-  const brandSlug = slugify(productData.brand);
-  const siteSlug = slugify(productData.site_name || productData.site);
-
+  const brandSlug = slugify(product.brand);
+  const siteSlug = slugify(product.site_name || product.site);
   return `${canonicalSlug}-${brandSlug}-${siteSlug}`;
 }
 
@@ -144,360 +163,277 @@ async function insertCanonicalProduct(canonicalName, brandName) {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT OR IGNORE INTO canonical_products (canonical_name, brand_name) VALUES (?, ?)`,
+      `INSERT OR IGNORE INTO canonical_products(canonical_name, brand_name) VALUES(?, ?)`,
       [canonicalName, brandName],
       function(err) {
-        if (err) reject(err);
-        else {
-          if (this.lastID) resolve(this.lastID);
-          else {
-            db.get(
-              `SELECT id FROM canonical_products WHERE canonical_name = ? AND brand_name = ?`,
-              [canonicalName, brandName],
-              (err, row) => {
-                if (err) reject(err);
-                else resolve(row ? row.id : null);
-              }
-            );
+        if (err) return reject(err);
+        if (this.lastID) return resolve(this.lastID);
+        db.get(
+          `SELECT id FROM canonical_products WHERE canonical_name=? AND brand_name=?`,
+          [canonicalName, brandName],
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row?.id || null);
           }
-        }
+        );
       }
     );
   });
 }
 
-async function getCanonicalSuggestions(name) {
+/* ======================
+   MARQUES
+====================== */
+async function getOrCreateBrand(brandName, siteName, brandUrl = '') {
   const db = await openDb();
-  const canonicalName = generateCanonicalName(name);
-
-  return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT DISTINCT canonical_name
-       FROM canonical_products
-       WHERE canonical_name LIKE ?
-       ORDER BY canonical_name
-       LIMIT 10`,
-      [`%${canonicalName}%`],
-      (err, rows) => {
+  let brand = await new Promise((resolve, reject) => {
+    db.get(
+      `SELECT id FROM brands WHERE brand_name=? AND site_name=?`,
+      [brandName, siteName],
+      (err, row) => {
         if (err) reject(err);
-        else resolve(rows.map(row => row.canonical_name));
+        else resolve(row);
+      }
+    );
+  });
+  if (brand) return brand.id;
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO brands(brand_name, site_name, brand_url) VALUES(?, ?, ?)`,
+      [brandName, siteName, brandUrl],
+      function(err) {
+        if (err) reject(err);
+        else resolve(this.lastID);
       }
     );
   });
 }
 
-
-async function updateProductCanonicalId(productId, canonicalId) {
+/* ======================
+   INSERT PRODUIT (image BLOB)
+====================== */
+async function insertProduct(product) {
   const db = await openDb();
-  return new Promise((resolve, reject) => {
-    db.run(`UPDATE products SET canonical_id = ? WHERE id = ?`, [canonicalId, productId], function(err) {
+  const siteName = product.site_name || product.site;
+  const brandId = await getOrCreateBrand(product.brand, siteName, product.brand_url);
+  const canonicalName = generateCanonicalName(product.name);
+  const canonicalId = await insertCanonicalProduct(canonicalName, product.brand);
+  const reference = generateProductReference(product);
+  const today = new Date().toISOString();
+
+  let existing = await new Promise((resolve, reject) => {
+    db.get(`SELECT id FROM products WHERE product_reference=?`, [reference], (err, row) => {
       if (err) reject(err);
-      else resolve();
+      else resolve(row);
     });
   });
+
+  if (existing) {
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE products SET
+          canonical_id=?, brand_id=?, name=?, product_url=?, regular_price=?, promo_price=?,
+          promo_percent=?, price_per_kg=?, weight_raw=?, availability=?, image=?, last_seen=?
+        WHERE id=?`,
+        [
+          canonicalId, brandId, product.name, product.product_url, product.regular_price,
+          product.promo_price, product.promo_percent, product.price_per_kg, product.weight_raw,
+          product.availability, product.image || null, today, existing.id
+        ],
+        err => err ? reject(err) : resolve()
+      );
+    });
+    return { success: true, id: existing.id };
+  }
+
+  const productId = await new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO products(
+        canonical_id, brand_id, name, site_name, product_url, product_reference,
+        regular_price, promo_price, promo_percent, price_per_kg, weight_raw,
+        availability, image, last_seen
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        canonicalId, brandId, product.name, siteName, product.product_url, reference,
+        product.regular_price, product.promo_price, product.promo_percent, product.price_per_kg,
+        product.weight_raw, product.availability, product.image || null, today
+      ],
+      function(err) {
+        if (err) reject(err);
+        else resolve(this.lastID);
+      }
+    );
+  });
+
+  await addPriceHistoryEntry(productId, product.regular_price, product.promo_price, today);
+  return { success: true, id: productId };
 }
 
+/* ======================
+   UPSERT PRODUIT (image BLOB)
+====================== */
+async function upsertProduct(productData) {
+  const db = await openDb();
 
+  if (productData.regular_price < 0) throw new Error("Le prix régulier ne peut pas être négatif.");
+  if (productData.promo_price !== undefined && productData.promo_price < 0)
+    throw new Error("Le prix promo ne peut pas être négatif.");
+
+  let brandId = productData.brand_id;
+  if (!brandId && productData.brand && productData.site_name) {
+    brandId = await getOrCreateBrand(productData.brand, productData.site_name, productData.brand_url);
+  }
+
+  let canonicalId = productData.canonical_id || productData.canonicalId;
+  if (!canonicalId && productData.canonical_name) {
+    canonicalId = await insertCanonicalProduct(productData.canonical_name, productData.brand);
+  }
+
+  let productId = productData.id;
+  if (!productId) {
+    const existing = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT id FROM products WHERE product_reference=? OR product_url=?`,
+        [productData.product_reference, productData.product_url],
+        (err, row) => err ? reject(err) : resolve(row)
+      );
+    });
+    if (existing) productId = existing.id;
+  }
+
+  const today = new Date().toISOString();
+  if (productId) {
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE products SET
+          name=?, canonical_id=?, brand_id=?, site_name=?, product_url=?,
+          regular_price=?, promo_price=?, promo_percent=?, price_per_kg=?,
+          weight_raw=?, availability=?, image=?, last_seen=?
+        WHERE id=?`,
+        [
+          productData.name, canonicalId, brandId, productData.site_name, productData.product_url,
+          productData.regular_price || 0, productData.promo_price, productData.promo_percent || 0,
+          productData.price_per_kg, productData.weight_raw, productData.availability,
+          productData.image || null, today, productId
+        ],
+        err => err ? reject(err) : resolve()
+      );
+    });
+  } else {
+    productId = await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO products(
+          canonical_id, brand_id, name, site_name, product_url, product_reference,
+          regular_price, promo_price, promo_percent, price_per_kg, weight_raw,
+          availability, image, last_seen
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          canonicalId, brandId, productData.name, productData.site_name, productData.product_url,
+          productData.product_reference, productData.regular_price || 0, productData.promo_price,
+          productData.promo_percent || 0, productData.price_per_kg, productData.weight_raw,
+          productData.availability, productData.image || null, today
+        ],
+        function(err) { if (err) reject(err); else resolve(this.lastID); }
+      );
+    });
+  }
+
+  if (productId && productData.regular_price !== undefined) {
+    await addPriceHistoryEntry(productId, productData.regular_price, productData.promo_price, today);
+  } else throw new Error("Impossible d'ajouter à l'historique : productId non défini.");
+
+  return { success: true, productId };
+}
+
+/* ======================
+   HISTORIQUE
+====================== */
+async function addPriceHistoryEntry(productId, price, promoPrice, date) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT OR REPLACE INTO price_history(product_id, price, promo_price, date)
+       VALUES(?, ?, ?, ?)`,
+      [productId, price, promoPrice, date],
+      err => err ? reject(err) : resolve()
+    );
+  });
+}
+
+async function getPriceHistory(productId) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT price, promo_price, date FROM price_history WHERE product_id=? ORDER BY date ASC`,
+      [productId],
+      (err, rows) => err ? reject(err) : resolve(rows)
+    );
+  });
+}
 
 /* ======================
    PRODUITS
 ====================== */
-async function insertProduct(productData) {
-  const db = await openDb();
-
-  // Vérifie ou insère la marque
-  let brandId = await new Promise((resolve, reject) => {
-    db.get(
-      `SELECT id FROM brands WHERE brand_name = ? AND site_name = ?`,
-      [productData.brand, productData.site_name || productData.site],
-      (err, row) => {
-        if (err) reject(err);
-        else resolve(row ? row.id : null);
-      }
-    );
-  });
-
-  if (!brandId) {
-    brandId = await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO brands (brand_name, site_name, brand_url) VALUES (?, ?, ?)`,
-        [productData.brand, productData.site_name || productData.site, ''],
-        function(err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
-        }
-      );
-    });
-  }
-
-  const canonicalName = generateCanonicalName(productData.name);
-  const canonicalId = await insertCanonicalProduct(canonicalName, productData.brand);
-
-  const productReference = generateProductReference(productData);
-
-  // Vérifie si le produit existe déjà
-  let productId = await new Promise((resolve, reject) => {
-    db.get(
-      `SELECT id FROM products WHERE product_reference = ?`,
-      [productReference],
-      (err, row) => {
-        if (err) reject(err);
-        else resolve(row ? row.id : null);
-      }
-    );
-  });
-
-  const today = new Date().toISOString().split('T')[0];
-
-  if (productId) {
-    // Update existant
-    await new Promise((resolve, reject) => {
-      db.run(
-        `UPDATE products SET 
-          canonical_id = ?, brand_id = ?, name = ?, regular_price = ?, promo_price = ?, promo_percent = ?, 
-          price_per_kg = ?, weight_raw = ?, availability = ?, availability_status = ?, last_seen = ?
-         WHERE id = ?`,
-        [
-          canonicalId,
-          brandId,
-          productData.name,
-          productData.regular_price || 0,
-          productData.promo_price,
-          productData.promo_percent,
-          productData.price_per_kg,
-          productData.weight_raw,
-          productData.availability,
-          productData.availability === "Disponible" ? "available" : "unavailable",
-          today,
-          productId
-        ],
-        function(err) {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-  } else {
-    // Insert nouveau
-    productId = await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO products
-          (canonical_id, brand_id, name, site_name, product_url, product_reference, 
-           regular_price, promo_price, promo_percent, price_per_kg, weight_raw, availability, availability_status, last_seen)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          canonicalId,
-          brandId,
-          productData.name,
-          productData.site_name || productData.site,
-          productData.product_url,
-          productReference,
-          productData.regular_price || 0,
-          productData.promo_price,
-          productData.promo_percent,
-          productData.price_per_kg,
-          productData.weight_raw,
-          productData.availability,
-          productData.availability === "Disponible" ? "available" : "unavailable",
-          today
-        ],
-        function(err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
-        }
-      );
-    });
-  }
-
-  // Price history (INSERT OR REPLACE pour un seul jour)
-  await new Promise((resolve, reject) => {
-    db.run(
-      `INSERT OR REPLACE INTO price_history (product_id, price, promo_price, date) VALUES (?, ?, ?, ?)`,
-      [
-        productId,
-        productData.regular_price || 0,
-        productData.promo_price,
-        today
-      ],
-      function(err) {
-        if (err) reject(err);
-        else resolve();
-      }
-    );
-  });
-
-  return { success: true, productReference };
-}
-
-async function updateProduct(productData) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    db.run(
-      `UPDATE products SET
-        name = ?,
-        regular_price = ?,
-        price_per_kg = ?,
-        weight_raw = ?,
-        canonical_id = ?,
-        last_seen = ?
-      WHERE id = ?`,
-      [
-        productData.name,
-        productData.regular_price,
-        productData.price_per_kg,
-        productData.weight_raw,
-        productData.canonicalId,
-        new Date().toISOString(),
-        productData.id
-      ],
-      async function(err) {
-        if (err) reject(err);
-        else {
-          // 2. Met à jour l'historique des prix
-          await updatePriceHistory(productData.id, productData.history);
-          resolve();
-        }
-      }
-    );
-  });
-}
-
-// 3. Fonction pour mettre à jour l'historique
-async function updatePriceHistory(productId, history) {
-  const db = await openDb();
-
-  // Supprime l'historique existant
-  await new Promise((resolve, reject) => {
-    db.run('DELETE FROM price_history WHERE product_id = ?', [productId], (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-
-  // Ajoute les nouvelles entrées
-  for (const entry of history) {
-    await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO price_history (product_id, price, date)
-         VALUES (?, ?, ?)`,
-        [productId, entry.price, entry.date],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-  }
-}
-
-
-/* ======================
-   GETTERS & DELETE
-====================== */
-async function getProductByUrl(productUrl) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT p.*, b.brand_name AS brand
-       FROM products p
-       LEFT JOIN brands b ON p.brand_id = b.id
-       WHERE p.product_url = ?`,
-      [productUrl],
-      (err, row) => {
-        if (err) reject(err);
-        else resolve(row || null);
-      }
-    );
-  });
-}
-
 async function getAllProducts() {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     db.all(`
-      SELECT p.*, b.brand_name AS brand
+      SELECT p.*, b.brand_name AS brand, c.canonical_name
       FROM products p
       LEFT JOIN brands b ON p.brand_id = b.id
+      LEFT JOIN canonical_products c ON p.canonical_id = c.id
+      ORDER BY p.last_seen DESC
     `, (err, rows) => {
       if (err) reject(err);
-      else resolve(rows);
+      else resolve(rows.map(row => ({ ...row, brand: row.brand || 'Inconnu', canonical_name: row.canonical_name || '' })));
     });
   });
 }
 
-async function deleteProducts(productUrls) {
+async function getProductById(id) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    db.get(`
+      SELECT p.*, b.brand_name AS brand, c.canonical_name AS canonical_name
+      FROM products p
+      LEFT JOIN brands b ON p.brand_id = b.id
+      LEFT JOIN canonical_products c ON p.canonical_id = c.id
+      WHERE p.id=?
+    `, [id], (err, row) => err ? reject(err) : resolve(row || null));
+  });
+}
+
+/* ======================
+   DELETE
+====================== */
+async function deleteProducts(urls) {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      db.exec('BEGIN TRANSACTION;', (err) => {
-        if (err) return reject(err);
-
-        productUrls.forEach(url => {
-          db.run(`DELETE FROM price_history WHERE product_id IN (SELECT id FROM products WHERE product_url = ?)`, [url]);
-          db.run(`DELETE FROM products WHERE product_url = ?`, [url]);
-        });
-
-        db.exec('COMMIT;', (err) => {
-          if (err) reject(err);
-          else resolve({ success: true });
-        });
+      db.exec("BEGIN");
+      let deletedCount = 0;
+      urls.forEach(url => {
+        db.run(`DELETE FROM price_history WHERE product_id IN (SELECT id FROM products WHERE product_url=?)`, [url], err => { if(err) reject(err); });
+        db.run(`DELETE FROM products WHERE product_url=?`, [url], err => { if(err) reject(err); else deletedCount++; });
       });
+      db.exec("COMMIT", err => err ? reject(err) : resolve({ success: true, deletedCount }));
     });
   });
 }
 
-async function getBrandUrl(brandName, siteName) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT brand_url FROM brands WHERE brand_name = ? AND site_name = ?`,
-      [brandName, siteName],
-      (err, row) => {
-        if (err) reject(err);
-        else resolve(row ? row.brand_url : null);
-      }
-    );
-  });
-}
-
-// Méthode pour exécuter des requêtes SQL directes
-async function run(sql, params = []) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
-}
-
-// Méthode pour supprimer l'historique de prix d'un produit
-async function deletePriceHistory(productId) {
-  return run('DELETE FROM price_history WHERE product_id = ?', [productId]);
-}
-
-// Méthode pour ajouter une entrée d'historique de prix
-async function addPriceHistoryEntry(productId, price, date) {
-  return run(
-    'INSERT INTO price_history (product_id, price, date) VALUES (?, ?, ?)',
-    [productId, price, date]
-  );
-}
-
-// Export des méthodes
+/* ======================
+   EXPORT
+====================== */
 module.exports = {
   openDb,
   init,
   insertProduct,
-  updateProduct,
+  upsertProduct,
   getAllProducts,
-  getProductByUrl,
+  getProductById,
+  getPriceHistory,
   deleteProducts,
   generateCanonicalName,
-  getBrandUrl,
-  insertCanonicalProduct,
-  updateProductCanonicalId,
-  run,                     // Méthode unique
-  deletePriceHistory,      // Méthode ajoutée
-  addPriceHistoryEntry     // Méthode ajoutée
+  getOrCreateBrand,
+  insertCanonicalProduct
 };

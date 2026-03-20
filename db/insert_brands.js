@@ -1,7 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'products.db');
+const dbPath = path.join(__dirname, 'database.db');
 const db = new sqlite3.Database(dbPath);
 
 const brandsList = [
@@ -23,6 +23,7 @@ const brandsList = [
   { brand_name: 'Happyvore', site_name: 'Chronodrive', brand_url: 'https://www.chronodrive.com/search/happyvore' },
   { brand_name: 'Happyvore', site_name: 'Carrefour', brand_url: 'https://www.carrefour.fr/s?q=happyvore' },
   { brand_name: 'Happyvore', site_name: 'Intermarché', brand_url: 'https://www.intermarche.com/recherche/happyvore' },
+  { brand_name: 'Hari&Co', site_name: 'Carrefour', brand_url: 'https://www.carrefour.fr/s?q=hari%26co' },
   { brand_name: 'Hellmanns', site_name: 'OVS', brand_url: 'https://www.officialveganshop.com/brand/1510-hellmanns' },
   { brand_name: 'Heura', site_name: 'OVS', brand_url: 'https://www.officialveganshop.com/brand/1195-heura' },
   { brand_name: 'Heura', site_name: 'Vegetal Food', brand_url: 'https://www.vegetalfood.fr/brand/211-heura' },

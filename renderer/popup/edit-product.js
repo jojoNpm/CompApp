@@ -1,199 +1,263 @@
-// =======================================
+// =============================================
 // EDIT-PRODUCT.JS
-// =======================================
-let popupOverlay = null;
-let popupContainer = null;
-let currentProduct = null;
+// Popup édition produit
+// =============================================
 
-/**
- * Affiche la popup "Edit Product" complète
- */
-function showEditPopup(product) {
+let editingProduct = null;
+let currentKeydownHandler = null;
+
+// =============================================
+// PUBLIC FUNCTION
+// =============================================
+window.showEditProductPopup = async function(product) {
+  if (!product) {
+    console.error("[EDIT] produit invalide");
+    return;
+  }
+
+  editingProduct = { ...product };
+
+  // =========================
+  // IMAGE
+  // =========================
+  await resolveProductImage(editingProduct);
+
+  // =========================
+  // OPEN POPUP
+  // =========================
+  const html = buildPopupHTML(editingProduct);
+  window.popupCore.openPopup(html);
+
+  // =========================
+  // BRAND SELECTOR
+  // =========================
+  await window.popupCore.setupBrandSelector(
+    "editBrandDisplay",
+    "editBrandSelectorContainer",
+    editingProduct
+  );
+
+  // =========================
+  // URL MARQUE AUTO
+  // =========================
+  await window.popupCore.updateBrandUrlField(editingProduct);
+
+  // =========================
+  // CANONICAL
+  // =========================
+  await loadCanonicalSuggestions();
+
+  // =========================
+  // URL bouton ouvrir
+  // =========================
+  window.popupCore.setupUrlOpen?.();
+
+  // =========================
+  // ➕ NOUVELLE MARQUE
+  // =========================
+  const addBrandBtn = document.getElementById("addNewBrandBtn");
+  if (addBrandBtn) {
+    addBrandBtn.onclick = () => {
+      window.popupCore.openNewBrandPopup(
+        editingProduct.brand,
+        editingProduct.site_name,
+        async (name, url) => {
+          editingProduct.brand = name;
+          editingProduct.brand_url = url;
+
+          const display = document.getElementById("editBrandDisplay");
+          if (display) display.innerText = name;
+
+          await window.popupCore.updateBrandUrlField(editingProduct);
+        }
+      );
+    };
+  }
+
+  // =========================
+  // ACTIONS
+  // =========================
+  document.getElementById("editCancelBtn").onclick = () => window.popupCore.closePopup();
+
+  document.getElementById("editSaveBtn").onclick = async () => {
+    try {
+      if (!editingProduct.brand || !(await window.api.isBrandKnown(editingProduct.brand))) {
+        return window.popupCore.showToast("⚠ Marque non reconnue", "error");
+      }
+
+      editingProduct.name = document.getElementById("editNameField").value || "";
+      editingProduct.canonical_name = document.getElementById("editCanonicalField").value || "";
+      editingProduct.weight_raw = document.getElementById("editWeightField").value || "";
+      editingProduct.product_url = document.getElementById("editProductUrlField").value || "";
+      editingProduct.brand_url = document.getElementById("editBrandUrlField").value || "";
+
+      const result = await window.api.upsertProduct(editingProduct);
+
+      if (result.success) {
+        (window.toast?.success || window.popupCore.showToast)("Produit modifié");
+        window.popupCore.closePopup();
+        window.rendererLoadProducts?.();
+      }
+
+    } catch (err) {
+      console.error(err);
+      (window.toast?.error || window.popupCore.showToast)("Erreur modification");
+    }
+  };
+
+  // =========================
+  // KEYBOARD
+  // =========================
+  setupKeyboard();
+};
+
+// =============================================
+// IMAGE
+// =============================================
+async function resolveProductImage(product) {
   try {
-    if (!product) {
-      console.error("[EDIT] Produit non défini");
-      return;
+    const img = await window.api.getCanonicalImage(product.canonical_name);
+    if (img) {
+      product.image_url = img;
+      product.image_source = "database";
+    } else if (product.image_url) {
+      product.image_source = "scraped";
+    } else {
+      product.image_source = "none";
     }
-
-    currentProduct = { ...product };
-    popupOverlay = document.getElementById("popupOverlay");
-    popupContainer = document.getElementById("popupContainer");
-
-    if (!popupOverlay || !popupContainer) {
-      console.error("[EDIT] Conteneurs popup manquants");
-      alert("Les éléments de la popup sont manquants. Vérifiez le HTML.");
-      return;
-    }
-
-    // Construction HTML de la popup
-    popupContainer.innerHTML = `
-      <h2 style="margin-top:0;">Modifier produit</h2>
-
-      <!-- Nom canonique -->
-      <div class="popup-field">
-        <label>Nom canonique</label>
-        <div id="canonicalWrapper">
-          <input id="canonicalInput" value="${product.canonical_name || ''}" style="width:100%; padding:8px; background:#444; color:white; border:none; border-radius:5px;">
-          <div id="canonicalSuggestions" style="margin-top:5px; display:flex; gap:10px;"></div>
-        </div>
-      </div>
-
-      <!-- Nom produit -->
-      <div class="popup-field">
-        <label>Nom produit</label>
-        <input id="productName" value="${product.name || ''}" style="width:100%; padding:8px; background:#444; color:white; border:none; border-radius:5px;">
-      </div>
-
-      <!-- URL produit -->
-      <div class="popup-field">
-        <label>URL produit</label>
-        <input id="productUrl" value="${product.product_url || ''}" style="width:100%; padding:8px; background:#444; color:white; border:none; border-radius:5px;">
-      </div>
-
-      <!-- Marque -->
-      <div class="popup-field" style="display:flex; align-items:center; justify-content:space-between;">
-        <div>
-          <label>Marque (Site: ${product.site || ''})</label>
-          <span id="brandDisplay">${product.brand || ''}</span>
-        </div>
-        <button id="changeBrandBtn" class="popup-btn" style="background:#2196F3; color:white;">Changer la marque</button>
-      </div>
-
-      <!-- URL Marque -->
-      <div class="popup-field">
-        <label>URL marque</label>
-        <input id="brandUrl" value="${product.brand_url || ''}" style="width:100%; padding:8px; background:#444; color:white; border:none; border-radius:5px;">
-      </div>
-
-      <!-- Poids -->
-      <div class="popup-field">
-        <label>Poids</label>
-        <input id="weightInput" value="${product.weight || ''}" style="width:100%; padding:8px; background:#444; color:white; border:none; border-radius:5px;">
-      </div>
-
-      <!-- Boutons -->
-      <div class="popup-buttons">
-        <button id="saveBtn" class="popup-btn btn-save">Sauvegarder</button>
-        <button id="cancelBtn" class="popup-btn btn-cancel">Annuler</button>
-      </div>
-    `;
-
-    popupOverlay.classList.remove('hidden');
-
-    // ---------- SUGGESTIONS NOM CANONIQUE ----------
-    const canonicalInput = document.getElementById('canonicalInput');
-    const canonicalSuggestions = document.getElementById('canonicalSuggestions');
-
-    async function updateCanonicalSuggestions(query) {
-      try {
-        const res = await window.api.getCanonicalSuggestions(query);
-        canonicalSuggestions.innerHTML = '';
-        if (res.success && Array.isArray(res.suggestions)) {
-          const suggestions = res.suggestions.slice(0, 2);
-          suggestions.forEach(s => {
-            const btn = document.createElement('button');
-            btn.textContent = s;
-            btn.className = 'popup-btn';
-            btn.style.background = '#555';
-            btn.style.color = 'white';
-            btn.onclick = () => {
-              canonicalInput.value = s;
-            };
-            canonicalSuggestions.appendChild(btn);
-          });
-          // "Autre" bouton
-          const otherBtn = document.createElement('button');
-          otherBtn.textContent = 'Autre';
-          otherBtn.className = 'popup-btn';
-          otherBtn.style.background = '#777';
-          otherBtn.style.color = 'white';
-          otherBtn.onclick = () => {
-            canonicalInput.removeAttribute('readonly');
-            canonicalInput.focus();
-          };
-          canonicalSuggestions.appendChild(otherBtn);
-        }
-      } catch (err) {
-        console.error("[EDIT] getCanonicalSuggestions:", err);
-      }
-    }
-
-    canonicalInput.addEventListener('input', () => {
-      updateCanonicalSuggestions(canonicalInput.value);
-    });
-
-    // ---------- CHANGER MARQUE ----------
-    const changeBrandBtn = document.getElementById('changeBrandBtn');
-    const brandDisplay = document.getElementById('brandDisplay');
-    const brandUrlInput = document.getElementById('brandUrl');
-
-    changeBrandBtn.onclick = async () => {
-      try {
-        const res = await window.api.getAllBrands(); // suppose une liste de marques depuis DB
-        if (res.success && Array.isArray(res.brands)) {
-          const select = document.createElement('select');
-          res.brands.forEach(b => {
-            const option = document.createElement('option');
-            option.value = b;
-            option.textContent = b;
-            if (b === currentProduct.brand) option.selected = true;
-            select.appendChild(option);
-          });
-          select.onchange = async () => {
-            const newBrand = select.value;
-            brandDisplay.textContent = newBrand;
-            // récupérer l'url de la nouvelle marque
-            const urlRes = await window.api.getBrandUrl(newBrand);
-            if (urlRes.success) brandUrlInput.value = urlRes.url || '';
-          };
-          // remplacer le bouton par le select
-          changeBrandBtn.replaceWith(select);
-        }
-      } catch (err) {
-        console.error("[EDIT] changer marque:", err);
-      }
-    };
-
-    // ---------- BOUTON ANNULER ----------
-    const cancelBtn = document.getElementById('cancelBtn');
-    cancelBtn.onclick = () => {
-      popupOverlay.classList.add('hidden');
-    };
-
-    // ---------- BOUTON SAUVEGARDER ----------
-    const saveBtn = document.getElementById('saveBtn');
-    saveBtn.onclick = async () => {
-      try {
-        const updatedProduct = {
-          id: product.id,
-          canonical_name: canonicalInput.value.trim(),
-          name: document.getElementById('productName').value.trim(),
-          product_url: document.getElementById('productUrl').value.trim(),
-          brand: brandDisplay.textContent,
-          brand_url: brandUrlInput.value.trim(),
-          weight: document.getElementById('weightInput').value.trim()
-        };
-        const result = await window.api.upsertProduct(updatedProduct);
-        if (!result.success) throw new Error(result.error || "Erreur inconnue");
-
-        popupOverlay.classList.add('hidden');
-        if (typeof window.rendererLoadProducts === 'function') {
-          window.rendererLoadProducts();
-        }
-      } catch (err) {
-        console.error("[EDIT] Sauvegarde produit:", err);
-        alert("Erreur: " + err.message);
-      }
-    };
-
-    // Initialisation suggestions
-    updateCanonicalSuggestions(canonicalInput.value);
-
   } catch (err) {
-    console.error("[EDIT] Erreur globale:", err);
-    alert("Erreur critique: " + err.message);
+    console.error("[IMAGE]", err);
+    product.image_source = "none";
   }
 }
 
-window.showEditPopup = showEditPopup;
-console.log("[EDIT] Module edit-product chargé");
+// =============================================
+// BUILD HTML
+// =============================================
+function buildPopupHTML(product) {
+  return `
+<div class="popup-container product-popup">
+
+  ${window.popupCore.buildHeader(product)}
+
+  <div class="popup-body">
+
+    <div class="popup-field">
+      <label>Nom produit</label>
+      <input type="text" id="editNameField" value="${product.name || ""}"/>
+    </div>
+
+    <div class="popup-field">
+      <label>Nom canonique</label>
+      <input type="text" id="editCanonicalField" value="${product.canonical_name || ""}"/>
+      <div class="canonical-suggestions"></div>
+    </div>
+
+    <div class="popup-field">
+      <label>Marque</label>
+
+      <div class="brand-row">
+        <div class="brand-main">
+          <div class="brand-raw">${product.brand || ""}</div>
+          <span>→</span>
+          <div id="editBrandDisplay" class="brand-display">${product.brand || ""}</div>
+        </div>
+
+        <div class="brand-actions">
+          <span id="addNewBrandBtn" class="brand-add">➕ Nouvelle</span>
+        </div>
+      </div>
+
+      <div id="editBrandSelectorContainer"></div>
+    </div>
+
+    <div class="popup-field">
+      <label>Poids</label>
+      <input type="text" id="editWeightField" value="${product.weight_raw || ""}"/>
+    </div>
+
+    <div class="popup-field">
+      <label>URL produit</label>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="editProductUrlField" value="${product.product_url || ""}"/>
+        <button class="open-url" data-url="${product.product_url || ""}">ouvrir</button>
+      </div>
+    </div>
+
+    <div class="popup-field">
+      <label>URL marque</label>
+      <input type="text" id="editBrandUrlField" value="${product.brand_url || ""}"/>
+    </div>
+
+  </div>
+
+  <div class="popup-footer">
+    <button id="editCancelBtn" class="btn-secondary">Annuler</button>
+    <button id="editSaveBtn" class="btn-primary">Sauvegarder</button>
+  </div>
+
+</div>
+  `;
+}
+
+// =============================================
+// CANONICAL SUGGESTIONS
+// =============================================
+async function loadCanonicalSuggestions() {
+  try {
+    const name = document.getElementById("editNameField")?.value;
+    if (!name || !window.api?.getCanonicalSuggestions) return;
+
+    const res = await window.api.getCanonicalSuggestions(name);
+    if (!res.success) return;
+
+    const suggestions = Array.isArray(res.suggestions) ? res.suggestions : [];
+
+    const container = document.querySelector(".canonical-suggestions");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    suggestions.slice(0, 2).forEach(s => {
+      const div = document.createElement("div");
+      div.className = "canonical-suggestion";
+      div.innerText = s;
+
+      div.onclick = () => {
+        document.getElementById("editCanonicalField").value = s;
+        editingProduct.canonical_name = s;
+      };
+
+      container.appendChild(div);
+    });
+
+    window.popupCore.setupCanonicalSuggestions(
+      ".canonical-suggestion",
+      "editCanonicalField",
+      editingProduct
+    );
+
+  } catch (err) {
+    console.warn("[CANONICAL]", err);
+  }
+}
+
+// =============================================
+// KEYBOARD
+// =============================================
+function setupKeyboard() {
+  if (currentKeydownHandler) {
+    document.removeEventListener("keydown", currentKeydownHandler);
+  }
+
+  currentKeydownHandler = (e) => {
+    if (e.key === "Escape") window.popupCore.closePopup();
+    if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+      document.getElementById("editSaveBtn")?.click();
+    }
+  };
+
+  document.addEventListener("keydown", currentKeydownHandler);
+}
+
+console.log("[EDIT POPUP] VERSION CLEAN & ALIGNÉE CORE");

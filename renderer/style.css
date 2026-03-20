@@ -352,51 +352,7 @@ tr:hover { background: #40454b; }
 }
 
 /* ===== SÉLECTEUR DE MARQUE ===== */
-.brand-select-container {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  transition: all 0.3s ease;
-  width: 100%;
-}
 
-.brand-select-button {
-  background: linear-gradient(45deg, #ff9800, #ffb74d);
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-left: 10px;
-  transition: all 0.3s ease;
-}
-
-.brand-select-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-
-.brand-select-dropdown {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  width: 100%;
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  background: #3a3a3a;
-  border-radius: 5px;
-  z-index: 10;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  padding: 10px;
-  margin-top: 5px;
-}
-
-.brand-select-dropdown.active {
-  opacity: 1;
-  max-height: 300px;
-}
 
 .brand-select-dropdown select {
   width: 100%;
@@ -519,4 +475,33 @@ tr:hover { background: #40454b; }
   color: #ccc;
   border-bottom: 1px solid #555;
   padding-bottom: 8px;
+}
+
+/* =============================================
+   SÉLECTEUR DE MARQUE - POPUP PRODUIT SCRAPÉ
+   ============================================= */
+
+
+.brand-arrow{
+  transition:0.2s;
+}
+
+.scrape-brand-labels{
+  display:flex;
+  justify-content:space-between;
+  font-size:12px;
+  color:#aaa;
+}
+
+.scrape-brand-scraped{
+  font-weight:bold;
+  color:#ddd;
+}
+
+.scrape-brand-arrow{
+  opacity:0.6;
+}
+
+.scrape-brand-detected{
+  flex:1;
 }

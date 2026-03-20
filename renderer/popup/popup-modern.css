@@ -1,0 +1,265 @@
+/* ======================================
+NEW POPUP SYSTEM (CENTRAL)
+====================================== */
+
+/* OVERLAY */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.popup-overlay.hidden { display: none; }
+.popup-overlay.visible { opacity: 1; }
+
+/* ======================================
+POPUP CONTAINER
+====================================== */
+.popup-container{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+
+  background: linear-gradient(145deg,#1e2227,#262b31);
+  border-radius: 14px;
+  padding: 22px;
+  max-width: 720px;
+  width: 92%;
+  color: white;
+
+  max-height: 90vh;
+  overflow-y: auto;
+
+  box-shadow:
+    0 20px 60px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+
+  animation: popupEnter 0.25s ease;
+}
+
+@keyframes popupEnter{
+  from{ transform: translateY(20px) scale(0.98); opacity:0; }
+  to{ transform: translateY(0) scale(1); opacity:1; }
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.popup-product-image img:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* ======================================
+HEADER
+====================================== */
+.popup-header{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  padding-bottom:12px;
+}
+
+/* IMAGE */
+.popup-product-image{
+  width:120px;
+  height:120px;
+  border-radius:10px;
+  background:#2f343a;
+  border:1px solid #444;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+
+.popup-product-image img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+/* ======================================
+BODY
+====================================== */
+.popup-body{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+}
+
+/* ======================================
+FIELDS
+====================================== */
+.popup-field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding-bottom:12px;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+}
+
+.popup-field label{
+  font-size:12px;
+  color:#aaa;
+}
+
+/* ======================================
+BRAND UX (🔥 IMPORTANT)
+====================================== */
+
+/* Ligne principale */
+.brand-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+/* Partie gauche (scraped → detected) */
+.brand-main{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+/* Bloc droite */
+.brand-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-left:auto;
+}
+
+/* Texte marque */
+.brand-display{
+  background:#3a3f45;
+  border:1px solid #555;
+  border-radius:6px;
+  padding:6px 10px;
+  cursor:pointer;
+}
+
+.brand-display:hover{
+  background:#42474d;
+}
+
+/* ⚠ nouvelle marque */
+.brand-warning{
+  color:#ff9800;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+/* ➕ nouvelle marque */
+.brand-add{
+  color:#4CAF50;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+/* ======================================
+DROPDOWN
+====================================== */
+#brand-selector-container{
+  position:relative;
+  display:inline-block;
+}
+
+.brand-dropdown{
+  display:none;
+  position:absolute;
+  top:100%;
+  left:0;
+  right:0;
+  min-width: 260px;
+  background:#2a2f34;
+  border:1px solid #444;
+  border-radius:8px;
+  margin-top:6px;
+  max-height:220px;
+  overflow-y:auto;
+  z-index:1000;
+}
+
+.brand-dropdown.active{
+  display:block;
+}
+
+/* search */
+.brand-search{
+  width:100%;
+  padding:8px;
+  border:none;
+  background:#444;
+  color:white;
+}
+
+/* list */
+.brand-list{
+  max-height:160px;
+  overflow-y:auto;
+}
+
+.brand-item{
+  padding:10px;
+  cursor:pointer;
+}
+
+.brand-item:hover{
+  background:#3a3f45;
+}
+
+/* suggestions */
+.brand-suggestion{
+  padding:8px;
+  font-size:12px;
+  color:#aaa;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+/* ======================================
+FOOTER
+====================================== */
+.popup-footer{
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  border-top:1px solid rgba(255,255,255,0.08);
+  padding-top:15px;
+}
+
+/* BUTTONS */
+.btn-primary{
+  background:linear-gradient(135deg,#4CAF50,#43A047);
+  border:none;
+  padding:10px 18px;
+  border-radius:8px;
+  color:white;
+  cursor:pointer;
+}
+
+.btn-secondary{
+  background:#555;
+  border:none;
+  padding:10px 18px;
+  border-radius:8px;
+  color:white;
+  cursor:pointer;
+}

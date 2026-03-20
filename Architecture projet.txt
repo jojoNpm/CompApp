@@ -3,27 +3,29 @@ CompApp/
 ├── main.js
 ├── preload.js
 ├── package.json
-├── run.vbs
 │
 ├── /renderer
 │   ├── index.html
 │   ├── renderer.js
 │   ├── style.css
+│   ├── /utils
+│   │    └── toast.js
 │   └── /popup
 │       ├── chart-popup.js
 │       ├── edit-product.js
 │       ├── history-popup.js
-│       ├── popup-manager.js
-│       ├── popup-utils.js
-│       └── scraped-product.js│
+│       ├── popup-core.js
+│       ├── popup-modern.css
+│       ├── scraped-product.js
+│       └── update-popup.js│
 │
 ├── /services
 │   ├── brandService.js
-│   ├── productService.js
 │   ├── canonicalService.js
+│   ├── productService.js
 │   ├── scrapingService.js
 │   ├── utils.js
-│   └── /sites
+│   └── /Sites
 │       ├── ovs.js
 │       ├── intermarche.js
 │       ├── carrefour.js
@@ -34,7 +36,7 @@ CompApp/
 ├── /db
 │   ├── database.js
 │   ├── insert_brands.js
-│   └── products.db
+│   └── database.db
 │
 ├── /extension
 │   ├── manifest.json

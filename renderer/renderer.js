@@ -1,53 +1,32 @@
-// =============================================
-// RENDERER.JS - Gestion complète de l'interface
-// =============================================
+// ======================================
+// RENDERER.JS
+// ======================================
 
 // ===============================
 // CHARGEMENT SÉCURISÉ DES MODULES
 // ===============================
-
 let popupModulesLoaded = false;
 
 async function loadPopupModules() {
-
   try {
-
     console.log("[RENDERER] Début du chargement des modules...");
 
-    // manager en premier
-    await import('./popup/popup-manager.js');
-
-    // popups
+    // Modules popup + toast
+    await import('./popup/popup-core.js');
+    await import('./popup/scraped-product.js');
     await import('./popup/edit-product.js');
     await import('./popup/history-popup.js');
     await import('./popup/chart-popup.js');
-    await import('./popup/scraped-product.js');
+    await import('./utils/toast.js');
 
     popupModulesLoaded = true;
-
     console.log("[RENDERER] Tous les modules chargés avec succès");
-
-    // vérification
-    if (typeof window.showEditPopup !== 'function') {
-      throw new Error("showEditPopup non défini après chargement");
-    }
-
-    if (typeof window.showHistoryPopup !== 'function') {
-      throw new Error("showHistoryPopup non défini après chargement");
-    }
-
-  }
-
-  catch (error) {
-
+    return true;
+  } catch (error) {
     console.error("[RENDERER] Erreur critique lors du chargement:", error);
-
-    alert(`Erreur fatale: ${error.message}. Voir console pour détails.`);
-
+    window.showToast?.(`Erreur fatale: ${error.message}`, 5000);
     throw error;
-
   }
-
 }
 
 // ===============================
@@ -55,10 +34,12 @@ async function loadPopupModules() {
 // ===============================
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    // 1. Chargement des modules (blocant)
     await loadPopupModules();
 
-    // 2. Initialisation des variables
+    const utilsModule = await import('../services/utils.js');
+
+    console.log("[RENDERER] utils.js chargé depuis /services/ et exposé globalement");
+
     const tableBody = document.getElementById('products-body');
     const selectionCount = document.getElementById('selectionCount');
     let selectedProducts = [];
@@ -78,34 +59,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ===============================
-    // RENDU DU TABLEAU AVEC GESTION D'ERREURS
+    // RENDU DES PRODUITS
     // ===============================
     function renderProducts(products) {
-      if (!tableBody) {
-        console.error("[RENDERER] tableBody introuvable");
-        return;
-      }
+      if (!tableBody) return console.error("[RENDERER] tableBody introuvable");
 
       tableBody.innerHTML = '';
       const brands = {};
       let brandIndex = 0;
 
-      // Regroupement sécurisé
       try {
+        // Organisation par marque et nom canonique
         products.forEach(p => {
           if (!p.brand) p.brand = 'Inconnu';
           if (!brands[p.brand]) brands[p.brand] = {};
-          const canonicalKey = p.canonicalName || p.name || 'Inconnu';
+          const canonicalKey = p.canonical_name || p.name || 'Inconnu';
           if (!brands[p.brand][canonicalKey]) brands[p.brand][canonicalKey] = [];
           brands[p.brand][canonicalKey].push(p);
         });
-      } catch (error) {
-        console.error("[RENDERER] Erreur regroupement:", error);
-        return;
-      }
 
-      // Génération du HTML
-      try {
         Object.keys(brands).forEach(brand => {
           const brandRow = document.createElement('tr');
           brandRow.className = `brandRow ${brandIndex % 2 === 0 ? 'brandBlockEven' : 'brandBlockOdd'}`;
@@ -124,9 +96,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             group.forEach(p => {
               const tr = document.createElement('tr');
+
               const bestClass = p.price_per_kg === bestPrice ? 'bestPrice' : '';
-              const priceDisplay = p.regular_price ?
-                window.utils.formatPrice(p.regular_price) : 'N/A';
+              const priceDisplay = p.regular_price
+                ? (window.utils?.formatPrice ? window.utils.formatPrice(p.regular_price) : p.regular_price)
+                : 'N/A';
+              const pricePerKgDisplay = p.price_per_kg
+                ? (window.utils?.formatPrice ? window.utils.formatPrice(p.price_per_kg) : p.price_per_kg)
+                : 'N/A';
+              const promoDisplay = p.promo_percent ? `-${p.promo_percent}%` : '';
 
               tr.innerHTML = `
                 <td><input type="checkbox" class="product-checkbox"></td>
@@ -135,9 +113,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </td>
                 <td class="site ${p.site_name}">${p.site_name}</td>
                 <td>${priceDisplay}</td>
-                <td>${p.promotions?.realPercent ? `-${p.promotions.realPercent}%` : ''}</td>
+                <td>${promoDisplay}</td>
                 <td>${p.weight_raw || ''}</td>
-                <td class="${bestClass}">${p.price_per_kg ? window.utils.formatPrice(p.price_per_kg) : 'N/A'}</td>
+                <td class="${bestClass}">${pricePerKgDisplay}</td>
                 <td class="brand ${p.brand}">
                   <a href="#" class="brand-link" data-brand="${p.brand}" data-site="${p.site_name}">${p.brand}</a>
                 </td>
@@ -148,128 +126,75 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </td>
               `;
 
-              // ===============================
-              // ÉCOUTEURS ROBUSTES
-              // ===============================
-
-              // 1. Sélection ligne
-              tr.onclick = (e) => {
-                if (!['BUTTON', 'INPUT', 'A'].includes(e.target.tagName)) {
-                  const checkbox = tr.querySelector('.product-checkbox');
-                  if (checkbox) {
-                    checkbox.checked = !checkbox.checked;
-                    const isChecked = checkbox.checked;
-                    if (isChecked && !selectedProducts.includes(p)) {
-                      selectedProducts.push(p);
-                      tr.classList.add('selected');
-                    } else if (!isChecked) {
-                      selectedProducts = selectedProducts.filter(x => x !== p);
-                      tr.classList.remove('selected');
-                    }
-                    updateSelection();
-                  }
-                }
-              };
-
-              // 2. Checkbox
+              // Checkbox + sélection
               const checkbox = tr.querySelector('.product-checkbox');
-              if (checkbox) {
-                checkbox.addEventListener('change', (e) => {
-                  const isChecked = e.target.checked;
-                  if (isChecked && !selectedProducts.includes(p)) {
-                    selectedProducts.push(p);
-                    tr.classList.add('selected');
-                  } else if (!isChecked) {
-                    selectedProducts = selectedProducts.filter(x => x !== p);
-                    tr.classList.remove('selected');
-                  }
-                  updateSelection();
-                });
-              }
+              checkbox?.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                if (isChecked && !selectedProducts.includes(p)) {
+                  selectedProducts.push(p);
+                  tr.classList.add('selected');
+                } else if (!isChecked) {
+                  selectedProducts = selectedProducts.filter(x => x !== p);
+                  tr.classList.remove('selected');
+                }
+                updateSelection();
+              });
 
-              // 3. Bouton Édition (corrigé)
+              // Edit / History buttons
               const editBtn = tr.querySelector('.edit-btn');
-              if (editBtn) {
-                editBtn.onclick = (e) => {
-                  e.stopPropagation();
-                  console.log("[RENDERER] Clic sur bouton Éditer pour:", p.name);
-                  if (typeof window.showEditPopup === 'function') {
-                    try {
-                      window.showEditPopup(p);
-                    } catch (error) {
-                      console.error("[RENDERER] Erreur showEditPopup:", error);
-                      alert(`Erreur ouverture popup: ${error.message}`);
-                    }
-                  } else {
-                    console.error("[RENDERER] showEditPopup non défini");
-                    alert("Fonction d'édition non disponible. Veuillez recharger la page.");
-                  }
-                };
-              }
+              editBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof window.showEditProductPopup === 'function') {
+                  try { window.showEditProductPopup(p); }
+                  catch (err) { console.error(err); window.showToast.error(`Erreur popup: ${err.message}`); }
+                } else window.showToast.warning("Fonction d'édition indisponible");
+              });
 
-              // 4. Bouton Historique
               const historyBtn = tr.querySelector('.history-btn');
-              if (historyBtn) {
-                historyBtn.onclick = (e) => {
-                  e.stopPropagation();
-                  if (typeof window.showHistoryPopup === 'function') {
-                    window.showHistoryPopup(p);
-                  } else {
-                    console.error("[RENDERER] showHistoryPopup non défini");
-                  }
-                };
-              }
+              historyBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof window.showHistoryPopup === 'function') window.showHistoryPopup(p);
+                else window.showToast.warning("Historique indisponible");
+              });
 
               tableBody.appendChild(tr);
             });
           });
         });
-      } catch (error) {
-        console.error("[RENDERER] Erreur rendu tableau:", error);
+      } catch (err) {
+        console.error("[RENDERER] Erreur rendu tableau:", err);
         tableBody.innerHTML = '<tr><td colspan="11">Erreur d\'affichage. Voir console.</td></tr>';
       }
     }
 
     // ===============================
-    // CHARGEMENT DES PRODUITS AVEC GESTION D'ERREURS
+    // CHARGEMENT PRODUITS
     // ===============================
     async function loadProducts() {
       try {
-        if (!popupModulesLoaded) {
-          console.log("[RENDERER] Attente des modules...");
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        if (typeof window.api?.getProducts !== 'function') {
-          throw new Error("API getProducts non disponible");
-        }
-
+        if (!popupModulesLoaded) await new Promise(r => setTimeout(r, 500));
+        if (typeof window.api?.getProducts !== 'function') throw new Error("API getProducts non disponible");
         const products = await window.api.getProducts();
         renderProducts(products);
-      } catch (error) {
-        console.error("[RENDERER] Erreur chargement produits:", error);
+      } catch (err) {
+        console.error("[RENDERER] Erreur chargement produits:", err);
         tableBody.innerHTML = '<tr><td colspan="11">Erreur de chargement. Voir console.</td></tr>';
       }
     }
 
     // ===============================
-    // ÉCOUTEURS GLOBAUX SÉCURISÉS
+    // ÉCOUTEURS GLOBAUX
     // ===============================
     document.addEventListener('click', async (e) => {
-      // Lien produit
       if (e.target.classList.contains('product-link')) {
         e.preventDefault();
         const url = e.target.dataset.url;
         if (url && typeof window.api?.openInWindow === 'function') {
-          try {
-            await window.api.openInWindow(url);
-          } catch (error) {
-            console.error("[RENDERER] Erreur ouverture URL:", error);
-          }
+          try { await window.api.openInWindow(url); }
+          catch (err) { console.error(err); window.showToast.error("Erreur ouverture URL"); }
         }
       }
 
-      // Lien marque
       if (e.target.classList.contains('brand-link')) {
         e.preventDefault();
         const brand = e.target.dataset.brand;
@@ -277,18 +202,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (brand && site && typeof window.api?.getBrandUrl === 'function') {
           try {
             const url = await window.api.getBrandUrl(brand, site);
-            if (url && typeof window.api.openInWindow === 'function') {
-              await window.api.openInWindow(url);
-            }
-          } catch (error) {
-            console.error("[RENDERER] Erreur lien marque:", error);
-          }
+            if (url && typeof window.api.openInWindow === 'function') await window.api.openInWindow(url);
+          } catch (err) { console.error(err); window.showToast.error("Erreur ouverture lien marque"); }
         }
       }
     });
 
     // ===============================
-    // ÉCOUTEURS SIDEBAR AVEC VÉRIFICATIONS
+    // SIDEBAR BUTTONS
     // ===============================
     const setupSidebarButtons = () => {
       const scrapeBtn = document.getElementById('scrape-url');
@@ -296,114 +217,75 @@ document.addEventListener('DOMContentLoaded', async () => {
       const updateBtn = document.getElementById('update-selected');
       const deleteBtn = document.getElementById('delete-selected');
 
-      if (scrapeBtn) {
-        scrapeBtn.addEventListener('click', async () => {
-          const urlInput = document.getElementById('product-url');
-          if (!urlInput) return;
+      // SCRAPING
+      scrapeBtn?.addEventListener('click', async () => {
+        const urlInput = document.getElementById('product-url');
+        const url = urlInput?.value.trim();
+        if (!url) return window.showToast.warning("URL requise");
+        if (!window.api?.scrapeProduct) return window.showToast.warning("Scraping indisponible");
 
-          const url = urlInput.value.trim();
-          if (!url) return alert('URL requise');
+        try {
+          window.showToast("Scraping en cours...", 0);
+          const result = await window.api.scrapeProduct(url);
+          if (result.success) {
+            window.showScrapedProductPopup(result.data);
+            await loadProducts(); // reload automatique après insertion
+          } else {
+            window.showToast.error("Erreur : " + result.error);
+          }
+        } catch (err) { console.error(err); window.showToast.error("Erreur : " + err.message); }
+      });
 
-          if (typeof window.api?.scrapeProduct !== 'function') {
-            return alert("Fonction de scraping non disponible");
-          }
+      // GRAPH
+      graphBtn?.addEventListener('click', () => {
+        if (selectedProducts.length === 0) return window.showToast.warning('Aucun produit sélectionné');
+        if (typeof window.showChartPopup !== 'function') return window.showToast.warning("Graph indisponible");
+        window.showChartPopup(selectedProducts);
+      });
 
-          try {
-            const result = await window.api.scrapeProduct(url);
-            if (!result.success) throw new Error(result.error);
+      // UPDATE
+      updateBtn?.addEventListener('click', async () => {
+        if (selectedProducts.length === 0) return window.showToast.warning('Aucun produit sélectionné');
+        if (!window.api?.upsertProduct) return window.showToast.warning("Mise à jour indisponible");
 
-            if (typeof window.showProductPopup !== 'function') {
-              throw new Error("Popup produit non disponible");
-            }
+        try {
+          for (const p of selectedProducts) await window.api.upsertProduct(p);
+          await loadProducts();
+          window.showToast.success("Produits mis à jour avec succès");
+        } catch (err) { console.error(err); window.showToast.error(`Mise à jour échouée: ${err.message}`); }
+      });
 
-            const suggestions = await window.api.getCanonicalSuggestions(result.data.name);
-            window.showProductPopup(result.data, suggestions);
-          } catch (error) {
-            console.error("[RENDERER] Erreur scraping:", error);
-            alert(`Scraping échoué: ${error.message}`);
-          }
-        });
-      }
+      // DELETE
+      deleteBtn?.addEventListener('click', async () => {
+        if (selectedProducts.length === 0) return window.showToast.warning('Aucun produit sélectionné');
+        if (!window.api?.deleteProducts) return window.showToast.warning("Suppression indisponible");
 
-      if (graphBtn) {
-        graphBtn.addEventListener('click', () => {
-          if (selectedProducts.length === 0) {
-            return alert('Aucun produit sélectionné');
-          }
-          if (typeof window.showChartPopup !== 'function') {
-            return alert("Fonction graphique non disponible");
-          }
-          window.showChartPopup(selectedProducts);
-        });
-      }
-
-      if (updateBtn) {
-        updateBtn.addEventListener('click', async () => {
-          if (selectedProducts.length === 0) {
-            return alert('Aucun produit sélectionné');
-          }
-          if (typeof window.api?.upsertProduct !== 'function') {
-            return alert("Fonction de mise à jour non disponible");
-          }
-
-          try {
-            for (const product of selectedProducts) {
-              await window.api.upsertProduct(product);
-            }
-            await loadProducts();
-          } catch (error) {
-            console.error("[RENDERER] Erreur mise à jour:", error);
-            alert(`Mise à jour échouée: ${error.message}`);
-          }
-        });
-      }
-
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', async () => {
-          if (selectedProducts.length === 0) {
-            return alert('Aucun produit sélectionné');
-          }
-          if (typeof window.api?.deleteProducts !== 'function') {
-            return alert("Fonction de suppression non disponible");
-          }
-
-          try {
-            const urls = selectedProducts.map(p => p.product_url);
-            await window.api.deleteProducts(urls);
-            selectedProducts = [];
-            await loadProducts();
-          } catch (error) {
-            console.error("[RENDERER] Erreur suppression:", error);
-            alert(`Suppression échouée: ${error.message}`);
-          }
-        });
-      }
+        try {
+          const urls = selectedProducts.map(p => p.product_url);
+          await window.api.deleteProducts(urls);
+          selectedProducts = [];
+          document.querySelectorAll('tr.selected').forEach(tr => tr.classList.remove('selected'));
+          await loadProducts();
+          window.showToast.success("Produits supprimés avec succès");
+        } catch (err) { console.error(err); window.showToast.error(`Suppression échouée: ${err.message}`); }
+      });
     };
 
-    // Initialisation des boutons après un délai (pour laisser le temps au DOM)
     setTimeout(setupSidebarButtons, 300);
 
     // ===============================
     // CHARGEMENT INITIAL
     // ===============================
-
-
-
-
-    // 👇 AJOUT ICI
-    await loadPopupModules();
-    
     await loadProducts();
     window.rendererLoadProducts = loadProducts;
 
-  } catch (error) {
-    console.error("[RENDERER] Erreur initiale fatale:", error);
+  } catch (err) {
+    console.error("[RENDERER] Erreur initiale fatale:", err);
     document.body.innerHTML = `
       <div style="color: red; padding: 20px; text-align: center;">
         <h2>Erreur critique</h2>
-        <p>${error.message}</p>
+        <p>${err.message}</p>
         <p>Veuillez recharger la page.</p>
-      </div>
-    `;
+      </div>`;
   }
 });

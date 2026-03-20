@@ -6,6 +6,7 @@ function cleanText(text) {
   if (!text) return text;
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // supprime accents
 }
+console.log("EXPORT CARREFOUR.JS :", module.exports);
 
 // Nettoie le poids (g, kg)
 function cleanWeight(text) {
@@ -18,30 +19,65 @@ function cleanWeight(text) {
 // Calcul promotion "Le 2ème à -XX%" pour Carrefour
 function computePromo(price, pricePerKg, weight, promoLabel) {
   if (!promoLabel || !price || !weight) return null;
-  const percentMatch = promoLabel.match(/-(\d+)%/);
-  if (!percentMatch) return null;
 
-  const discount = parseInt(percentMatch[1]);
+  const label = promoLabel.toLowerCase();
 
-  // On ne traite que les promos 2ème à -XX%
-  if (!promoLabel.toLowerCase().includes("2")) return null;
+  // =========================
+  // CAS 1 : "2ème à -XX%"
+  // =========================
+  const percentMatch = label.match(/-(\d+)%/);
+  if (percentMatch && label.includes("2")) {
+    const discount = parseInt(percentMatch[1]);
 
-  const secondPrice = price * (1 - discount / 100);
-  const avgPrice = (price + secondPrice) / 2;
+    const secondPrice = price * (1 - discount / 100);
+    const avgPrice = (price + secondPrice) / 2;
 
-  const weightMatch = weight.match(/(\d+)/);
-  if (!weightMatch) return null;
+    const weightMatch = weight.match(/(\d+)/);
+    if (!weightMatch) return null;
 
-  const grams = parseInt(weightMatch[1]);
-  const kg = grams / 1000;
+    const grams = parseInt(weightMatch[1]);
+    const kg = grams / 1000;
 
-  const promoPriceKg = avgPrice / kg;
-  const realPercent = Math.round((1 - (avgPrice / price)) * 100);
+    const promoPriceKg = avgPrice / kg;
+    const realPercent = Math.round((1 - (avgPrice / price)) * 100);
 
-  return {
-    promoPriceKg: parseFloat(promoPriceKg.toFixed(2)),
-    realPercent
-  };
+    return {
+      type: "second-discount",
+      promoPriceKg: parseFloat(promoPriceKg.toFixed(2)),
+      realPercent
+    };
+  }
+
+  // =========================
+  // CAS 2 : "X pour Y" (ex: 3 pour 2)
+  // =========================
+  const multiMatch = label.match(/(\d+)\s*(pour|=)\s*(\d+)/);
+
+  if (multiMatch) {
+    const qty = parseInt(multiMatch[1]);
+    const pay = parseInt(multiMatch[3]);
+
+    if (qty > 0 && pay > 0 && qty > pay) {
+      const avgPrice = (price * pay) / qty;
+
+      const weightMatch = weight.match(/(\d+)/);
+      if (!weightMatch) return null;
+
+      const grams = parseInt(weightMatch[1]);
+      const kg = grams / 1000;
+
+      const promoPriceKg = avgPrice / kg;
+      const realPercent = Math.round((1 - (pay / qty)) * 100);
+
+      return {
+        type: "multi-buy",
+        promoPriceKg: parseFloat(promoPriceKg.toFixed(2)),
+        realPercent
+      };
+    }
+  }
+
+  return null;
 }
 
 // Fonction principale de scraping
@@ -56,66 +92,78 @@ async function scrapeCarrefour(url) {
     });
 
     console.log("========== CARREFOUR SCRAPER START ==========");
-    console.log("URL:", url);
+console.log("URL:", url);
 
-    win.loadURL(url);
+win.loadURL(url);
 
-    win.webContents.once('did-finish-load', async () => {
-      try {
-        console.log("Page fully loaded, executing script...");
+win.webContents.once('did-finish-load', async () => {
+  try {
+    console.log("Page fully loaded, executing script...");
 
-        const data = await win.webContents.executeJavaScript(`
-          new Promise((res) => {
-            setTimeout(() => {
-              if (!window.__INITIAL_STATE__ || !window.__INITIAL_STATE__.vuex) {
-                return res({ error: "Échec chargement Carrefour: __INITIAL_STATE__ absent" });
-              }
+    const data = await win.webContents.executeJavaScript(`
+      new Promise((res) => {
+        setTimeout(() => {
+          if (!window.__INITIAL_STATE__ || !window.__INITIAL_STATE__.vuex) {
+            return res({ error: "Échec chargement Carrefour: __INITIAL_STATE__ absent" });
+          }
 
-              const products = window.__INITIAL_STATE__.vuex.analytics.indexedEntities.product;
-              const productKey = Object.keys(products)[0];
-              const prod = products[productKey];
-              if (!prod) return res({ error: "Produit introuvable dans __INITIAL_STATE__" });
+          const products = window.__INITIAL_STATE__.vuex.analytics.indexedEntities.product;
+          const productKey = Object.keys(products)[0];
+          const prod = products[productKey];
+          if (!prod) return res({ error: "Produit introuvable dans __INITIAL_STATE__" });
 
-              const attr = prod.attributes;
-              let promoLabel = null;
+          const attr = prod.attributes;
+          let promoLabel = null;
 
-              if (attr.offers && attr.offers[productKey]) {
-                const offerIds = Object.keys(attr.offers[productKey]);
-                const offer = attr.offers[productKey][offerIds[0]];
-                if (offer.attributes && offer.attributes.promotion) {
-                  promoLabel = offer.attributes.promotion.label;
-                }
-              }
+          // === Promo existante ===
+          if (attr.offers && attr.offers[productKey]) {
+            const offerIds = Object.keys(attr.offers[productKey]);
+            const offer = attr.offers[productKey][offerIds[0]];
+            if (offer.attributes && offer.attributes.promotion) {
+              promoLabel = offer.attributes.promotion.label;
+            }
+          }
 
-              let availability = false;
-              if (attr.offers && attr.offers[productKey]) {
-                const offerIds = Object.keys(attr.offers[productKey]);
-                const offer = attr.offers[productKey][offerIds[0]];
-                availability = offer.attributes?.availability?.purchasable || false;
-              }
+          // === Disponibilité ===
+          let availability = false;
+          if (attr.offers && attr.offers[productKey]) {
+            const offerIds = Object.keys(attr.offers[productKey]);
+            const offer = attr.offers[productKey][offerIds[0]];
+            availability = offer.attributes?.availability?.purchasable || false;
+          }
 
-              let packaging = attr.packaging || (document.querySelector(".product-title__tags button")?.textContent.trim() || null);
-              const price = attr.offers?.[productKey]?.[Object.keys(attr.offers[productKey])[0]]?.attributes?.price?.price || null;
-              const pricePerKg = attr.offers?.[productKey]?.[Object.keys(attr.offers[productKey])[0]]?.attributes?.price?.perUnit || null;
+          // === Poids / packaging ===
+          let packaging = attr.packaging || (document.querySelector(".product-title__tags button")?.textContent.trim() || null);
 
-              res({
-                name: attr.title || null,
-                brand: attr.brand || null,
-                price,
-                pricePerKg,
-                weight: packaging,
-                availability,
-                promoLabel
-              });
+          // === Prix ===
+          const price = attr.offers?.[productKey]?.[Object.keys(attr.offers[productKey])[0]]?.attributes?.price?.price || null;
+          const pricePerKg = attr.offers?.[productKey]?.[Object.keys(attr.offers[productKey])[0]]?.attributes?.price?.perUnit || null;
 
-            }, 200);
+          // === Image principale ===
+          const imgEl = document.querySelector(".pdp-hero__image img");
+          const image_url = imgEl ? imgEl.src : null;
+
+          // === Résultat ===
+          res({
+            name: attr.title || null,
+            brand: attr.brand || null,
+            price,
+            pricePerKg,
+            weight: packaging,
+            availability,
+            promoLabel,
+            image_url
           });
-        `);
 
-        win.close();
+        }, 200);
+      });
+    `);
 
-        if (data.error) return reject(new Error(data.error));
+    win.close();
 
+    if (data.error) return reject(new Error(data.error));
+
+    
         // nettoyage texte et poids
         data.name = cleanText(data.name);
         data.promoLabel = cleanText(data.promoLabel);
