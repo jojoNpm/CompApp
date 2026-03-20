@@ -102,6 +102,14 @@ async function showScrapedProductPopup(product) {
       <div class="popup-body">
 
         <div class="popup-field">
+          <label>Image</label>
+          <div class="popup-product-image">
+            ${normalized.image_url
+              ? `<img src="${normalized.image_url}" style="max-width:100px;max-height:100px;"/>` : "📦 Image non disponible"}
+          </div>
+        </div>
+
+        <div class="popup-field">
           <label>Nom produit</label>
           <div id="scrapedProductName" class="editable-field">${normalized.name}</div>
         </div>
@@ -124,7 +132,7 @@ async function showScrapedProductPopup(product) {
             <div id="brand-display" class="brand-display">${currentScrapedProduct.brand}</div>
 
             ${currentScrapedProduct.isNewBrand 
-              ? `<span id="newBrandWarning" style="color:orange;font-weight:bold;cursor:pointer;">⚠ Nouvelle marque ?</span>` 
+              ? `<span id="newBrandWarning" style="color:orange;font-weight:bold;cursor:pointer;">⚠ Nouvelle marque ?</span> 
               : ""}
           </div>
 
