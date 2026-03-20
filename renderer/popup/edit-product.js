@@ -116,12 +116,14 @@ window.showEditProductPopup = async function(product) {
 // =============================================
 async function resolveProductImage(product) {
   try {
+    if (product.image_url) {
+      product.image_source = "scraped";
+      return; // Priorité à l'image scrapée
+    }
     const img = await window.api.getCanonicalImage(product.canonical_name);
     if (img) {
       product.image_url = img;
       product.image_source = "database";
-    } else if (product.image_url) {
-      product.image_source = "scraped";
     } else {
       product.image_source = "none";
     }
@@ -141,6 +143,14 @@ function buildPopupHTML(product) {
   ${window.popupCore.buildHeader(product)}
 
   <div class="popup-body">
+
+    <div class="popup-field">
+      <label>Image</label>
+      <div class="popup-product-image">
+        ${product.image_url
+          ? `<img src="${product.image_url}" style="max-width:100px;max-height:100px;"/>` : "📦 Image non disponible"}
+      </div>
+    </div>
 
     <div class="popup-field">
       <label>Nom produit</label>
