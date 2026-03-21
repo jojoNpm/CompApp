@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Test d'images</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    #results {
+      margin-top: 20px;
+    }
+    .popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+    }
+    .popup img {
+      max-width: 300px;
+      max-height: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test d'images</h1>
+  <div>
+    <button onclick="testCarrefour()">Test Carrefour</button>
+    <button onclick="testOVS()">Test OVS</button>
+    <button onclick="testChronodrive()">Test Chronodrive</button>
+    <button onclick="testVegetalFood()">Test Vegetal Food</button>
+    <button onclick="testIntermarche()">Test Intermarché</button>
+  </div>
+  <div id="results"></div>
+
+  <script>
+    // Fonctions pour afficher les résultats
+    function showResult(site, imageUrl) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = `
+        <div class="popup">
+          <h2>${site}</h2>
+          ${imageUrl ? `<img src="${imageUrl}" alt="${site}">` : '<p>Image non trouvée</p>'}
+        </div>
+      `;
+    }
+
+    // Fonctions de test
+    async function testCarrefour() {
+      const imageUrl = await window.testCarrefour();
+      showResult("Carrefour", imageUrl);
+    }
+
+    async function testOVS() {
+      const imageUrl = await window.testOVS();
+      showResult("OVS", imageUrl);
+    }
+
+    async function testChronodrive() {
+      const imageUrl = await window.testChronodrive();
+      showResult("Chronodrive", imageUrl);
+    }
+
+    async function testVegetalFood() {
+      const imageUrl = await window.testVegetalFood();
+      showResult("Vegetal Food", imageUrl);
+    }
+
+    async function testIntermarche() {
+      const imageUrl = await window.testIntermarche();
+      showResult("Intermarché", imageUrl);
+    }
+  </script>
+</body>
+</html>
