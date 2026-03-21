@@ -343,6 +343,7 @@ async function updateBrandUrlField(product, fieldId = "scrapedBrandUrl") {
 // IMAGE
 // ===============================
 function buildImageBlock(product) {
+  console.log("Produit passé à buildImageBlock :", product); // Log ajouté
   if (product.image_url) {
     return `<div class="popup-product-image">
       <img src="${product.image_url}" loading="lazy" style="cursor:pointer;" onclick="window.popupCore.openImageZoom('${product.image_url}')" />
