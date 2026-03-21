@@ -100,7 +100,6 @@ async function showScrapedProductPopup(product) {
       ${window.popupCore.buildHeader(normalized)}
 
       <div class="popup-body">
-
         <div class="popup-field">
           <label>Nom produit</label>
           <div id="scrapedProductName" class="editable-field">${normalized.name}</div>
@@ -124,7 +123,7 @@ async function showScrapedProductPopup(product) {
             <div id="brand-display" class="brand-display">${currentScrapedProduct.brand}</div>
 
             ${currentScrapedProduct.isNewBrand 
-              ? `<span id="newBrandWarning" style="color:orange;font-weight:bold;cursor:pointer;">⚠ Nouvelle marque ?</span>` 
+              ? `<span id="newBrandWarning" style="color:orange;font-weight:bold;cursor:pointer;">⚠ Nouvelle marque ?</span>`
               : ""}
           </div>
 
@@ -213,25 +212,25 @@ async function showScrapedProductPopup(product) {
     const newBrandWarning = document.getElementById("newBrandWarning");
 
     if (newBrandWarning) {
-  newBrandWarning.onclick = (e) => {
-    e.stopPropagation();
+      newBrandWarning.onclick = (e) => {
+        e.stopPropagation();
 
-    window.popupCore.openNewBrandPopup(
-      currentScrapedProduct.brand,
-      currentScrapedProduct.site_name,
-      async (name, url) => {
-        currentScrapedProduct.brand = name;
-        currentScrapedProduct.brand_url = url;
+        window.popupCore.openNewBrandPopup(
+          currentScrapedProduct.brand,
+          currentScrapedProduct.site_name,
+          async (name, url) => {
+            currentScrapedProduct.brand = name;
+            currentScrapedProduct.brand_url = url;
 
-        const display = document.getElementById("brand-display");
-        if (display) display.innerText = name;
+            const display = document.getElementById("brand-display");
+            if (display) display.innerText = name;
 
-        currentScrapedProduct.isNewBrand = false;
-        await window.popupCore.updateBrandUrlField(currentScrapedProduct);
-      }
-    );
-  };
-}
+            currentScrapedProduct.isNewBrand = false;
+            await window.popupCore.updateBrandUrlField(currentScrapedProduct);
+          }
+        );
+      };
+    }
 
     // =========================
     // ADD PRODUCT

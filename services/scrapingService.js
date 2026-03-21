@@ -1,5 +1,3 @@
-// services/scrapingService.js
-
 const { scrapeVegetalFood } = require('./Sites/vegetalfood');
 const { scrapeOVS } = require('./Sites/ovs'); 
 const { scrapeCarrefour } = require('./Sites/carrefour');
@@ -57,6 +55,7 @@ async function scrapeProduct(url) {
     }
 
     const rawData = await scraperEntry.scraper(url);
+    console.log("Produit retourné par scraper :", rawData); // Log ajouté
 
     // Ajout image
     let imageBuffer = null;
@@ -159,9 +158,9 @@ async function scrapeIntermarcheWithBrowser(url) {
                 .find(el => el.textContent.includes("€/Kg"));
               if (priceInfo) {
                 const text = priceInfo.textContent;
-                const weightMatch = text.match(/(\\d+)\\s?g/);
+                const weightMatch = text.match(/(\d+)\s?g/);
                 if (weightMatch) data.weight = weightMatch[1] + "g";
-                const priceMatch = text.match(/([\\d,]+)\\s?€\\/Kg/);
+                const priceMatch = text.match(/([\d,]+)\s?€\/Kg/);
                 if (priceMatch) data.pricePerKg = parseFloat(priceMatch[1].replace(",", "."));
               }
 
@@ -173,7 +172,7 @@ async function scrapeIntermarcheWithBrowser(url) {
                 data.price = parseFloat(crossed.textContent.replace(",", "."));
                 const instead = document.querySelector(".product--price__insteadOf");
                 if (instead) {
-                  const match = instead.textContent.match(/([\\d,]+)/);
+                  const match = instead.textContent.match(/([\d,]+)/);
                   if (match) data.promoPrice = parseFloat(match[1].replace(",", "."));
                 }
               }
@@ -181,7 +180,7 @@ async function scrapeIntermarcheWithBrowser(url) {
               // Badge %
               const badge = document.querySelector("div.badge");
               if (badge) {
-                const match = badge.textContent.match(/(\\d+)%/);
+                const match = badge.textContent.match(/(\d+)%/);
                 if (match) data.promoPercent = parseInt(match[1]);
               }
 
@@ -191,7 +190,7 @@ async function scrapeIntermarcheWithBrowser(url) {
 
               resolve(data);
             }).catch(() => resolve({ error: "Produit non détecté" }));
-          });
+          })
         `);
 
         win.close();
