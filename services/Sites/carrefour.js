@@ -1,3 +1,5 @@
+const { BrowserWindow } = require('electron');
+
 // Nettoie le texte pour console / logs
 function cleanText(text) {
   if (!text) return text;

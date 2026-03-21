@@ -63,15 +63,27 @@ async function scrapeProduct(url) {
       imageBuffer = await fetchImageAsBuffer(rawData.image_url);
     }
 
-    return {
-      success: true,
-      data: standardizeProductData({
-        ...rawData,
-        site_name: getSiteNameForDomain(domain),
-        product_url: url,
-        image: imageBuffer
-      })
-    };
+    // =========================
+// STANDARDIZE + IMAGE FIX
+// =========================
+const finalData = standardizeProductData({
+  ...rawData,
+  site_name: getSiteNameForDomain(domain),
+  product_url: url,
+
+  image: imageBuffer,          // pour DB
+  image_url: rawData.image_url // 🔥 POUR LE FRONT
+});
+
+console.log("FINAL DATA SENT TO FRONT:", {
+  image_url: finalData.image_url,
+  hasBuffer: !!imageBuffer
+});
+
+return {
+  success: true,
+  data: finalData
+};
 
   } catch (error) {
     console.error("Scraping error:", error);
