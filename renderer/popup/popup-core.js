@@ -1,5 +1,5 @@
 // =============================================
-// POPUP CORE - VERSION CORRIGÉE
+// POPUP CORE - VERSION CENTRALISÉE ET ALIGNÉE
 // =============================================
 
 let popupOverlay = null;
@@ -14,7 +14,7 @@ const siteColors = {
   'Vegetal Food': '#89b944',
   'OVS': '#66cdaa',
   'Chronodrive': '#e3e300',
-  'Intermarche': '#fa6d3d'
+  'Intermarché': '#fa6d3d'
 };
 
 // ===============================
@@ -75,7 +75,7 @@ function closePopup() {
 }
 
 // ===============================
-// TOAST
+// TOAST (centralisé dans toast.js)
 // ===============================
 function showToast(message, type = "info", duration = 2500) {
   if (window.toast) {
@@ -99,7 +99,7 @@ function showToast(message, type = "info", duration = 2500) {
 
 // ===============================
 // HEADER COMMUN (titre centré + site + image)
-// ===============================
+// =============================================
 function buildHeader(product) {
   const siteColor = siteColors[product.site_name] || "#999";
 
@@ -127,20 +127,96 @@ function buildHeader(product) {
 }
 
 // ===============================
-// NOM PRODUIT / NOM CANONIQUE AUTOSIZE
+// IMAGE
 // ===============================
-function setupAutoWidthFields(ids, product) {
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.display = "inline-block";
-    el.style.width = "auto";
-    el.innerText = product[id.replace("scraped", "").replace("custom", "").toLowerCase()] || "";
-  });
+function buildImageBlock(product) {
+  if (product.image_url) {
+    return `<div class="popup-product-image">
+      <img src="${product.image_url}" loading="lazy" style="cursor:pointer;" onclick="window.popupCore.openImageZoom('${product.image_url}')" />
+    </div>`;
+  }
+
+  return `<div class="popup-product-image">
+    <div class="popup-image-placeholder">📦<span>Image non disponible</span></div>
+  </div>`;
 }
 
 // ===============================
-// ÉDITION GÉNÉRIQUE
+// IMAGE ZOOM (CLICK)
+// =========================
+function openImageZoom(url) {
+  if (!url) return;
+
+  openPopup(`<div class="popup-container" style="
+    background:transparent;
+    box-shadow:none;
+    display:flex;
+    justify-content:center;
+    align-items:center;">
+      <img src="${url}" style="
+        max-width:90vw;
+        max-height:90vh;
+        border-radius:12px;
+        box-shadow:0 10px 30px rgba(0,0,0,0.3);
+        animation: zoomIn 0.2s ease;"
+      />
+  </div>`);
+}
+
+// ===============================
+// NOUVELLE MARQUE (CENTRALISÉ)
+// ===============================
+function openNewBrandPopup(prefillName = "", siteName = "", callback) {
+  if (!siteName) return console.error("[NEW BRAND] siteName manquant");
+
+  const siteColor = siteColors[siteName] || "#999";
+
+  const html = `
+    <div class="popup-container">
+      <div class="popup-header"><h3>➕ Nouvelle marque</h3></div>
+      <div class="popup-body" style="display:flex;flex-direction:column;gap:12px;">
+        <div>Site : <span style="background:${siteColor}; color:white; padding:4px 10px; border-radius:6px; font-size:12px; margin-left:6px;">${siteName}</span></div>
+        <div class="popup-field">
+          <label>Nom de la marque</label>
+          <input id="newBrandName" class="editing-field" value="${prefillName || ""}" placeholder="Ex: Bjorg"/>
+        </div>
+        <div class="popup-field">
+          <label>URL marque</label>
+          <input id="newBrandUrl" class="editing-field" placeholder="https://..."/>
+        </div>
+      </div>
+      <div class="popup-footer">
+        <button id="cancelNewBrandBtn" class="btn-secondary">Annuler</button>
+        <button id="addNewBrandBtn" class="btn-primary">Ajouter</button>
+      </div>
+    </div>
+  `;
+
+  openPopup(html);
+
+  document.getElementById("cancelNewBrandBtn").onclick = closePopup;
+
+  document.getElementById("addNewBrandBtn").onclick = async () => {
+    const name = document.getElementById("newBrandName")?.value.trim();
+    const url = document.getElementById("newBrandUrl")?.value.trim();
+
+    if (!name) return showToast("⚠ Nom de marque obligatoire", "error");
+    if (!url) return showToast("⚠ URL de marque obligatoire", "error");
+
+    try {
+      await window.api.upsertBrand({ brand_name: name, site_name: siteName, brand_url: url });
+      showToast(`Marque ajoutée : ${name}`, "success");
+      if (typeof callback === "function") callback(name, url, siteName);
+      closePopup();
+    } catch (err) {
+      console.error("[NEW BRAND ERROR]", err);
+      showToast("Erreur ajout marque", "error");
+    }
+  };
+}
+
+// ===============================
+// ÉDITION GÉNÉRIQUE (centralisé)
 // ===============================
 function enableFieldEditing(id, product, key) {
   const field = document.getElementById(id);
@@ -172,37 +248,7 @@ function enableFieldEditing(id, product, key) {
 }
 
 // ===============================
-// CANONICAL
-// ===============================
-function enableCanonicalEditing(displayId, btnId, product) {
-  const display = document.getElementById(displayId);
-  const btn = document.getElementById(btnId);
-  if (!display || !btn) return;
-
-  btn.onclick = () => {
-    const textarea = document.createElement("textarea");
-    textarea.className = "editing-field";
-    textarea.value = product.canonical_name || "";
-
-    display.replaceWith(textarea);
-    textarea.focus();
-
-    textarea.onblur = () => {
-      product.canonical_name = textarea.value.trim();
-      const div = document.createElement("div");
-      div.id = displayId;
-      div.className = "static-field";
-      div.innerText = product.canonical_name;
-      textarea.replaceWith(div);
-
-      div.style.display = "inline-block";
-      div.style.width = "auto";
-    };
-  };
-}
-
-// ===============================
-// SUGGESTIONS CANONICAL
+// CANONICAL SUGGESTIONS (centralisé)
 // ===============================
 function setupCanonicalSuggestions(selector, displayId, product) {
   document.querySelectorAll(selector).forEach((btn) => {
@@ -218,7 +264,7 @@ function setupCanonicalSuggestions(selector, displayId, product) {
 }
 
 // ===============================
-// SELECTEUR DE MARQUE + NOUVELLE MARQUE ANIMÉE
+// SELECTEUR DE MARQUE (centralisé)
 // ===============================
 async function setupBrandSelector(displayId, dropdownId, product) {
   const display = document.getElementById(displayId);
@@ -302,18 +348,6 @@ async function setupBrandSelector(displayId, dropdownId, product) {
 }
 
 // ===============================
-// UTILITAIRE : SCORE SIMILARITÉ
-// ===============================
-function similarityScore(a, b) {
-  if (!a || !b) return 0;
-  a = a.toLowerCase().replace(/[^a-z0-9]/g,"");
-  b = b.toLowerCase().replace(/[^a-z0-9]/g,"");
-  let score = 0;
-  for (let c of a) if (b.includes(c)) score++;
-  return score / Math.max(a.length, b.length);
-}
-
-// ===============================
 // URL MARQUE CENTRALISÉ
 // ===============================
 async function updateBrandUrlField(product, fieldId = "scrapedBrandUrl") {
@@ -340,93 +374,15 @@ async function updateBrandUrlField(product, fieldId = "scrapedBrandUrl") {
 }
 
 // ===============================
-// IMAGE
+// UTILITAIRE : SCORE SIMILARITÉ
 // ===============================
-function buildImageBlock(product) {
-  console.log("Produit passé à buildImageBlock :", product); // Log ajouté
-  if (product.image_url) {
-    return `<div class="popup-product-image">
-      <img src="${product.image_url}" loading="lazy" style="cursor:pointer;" onclick="window.popupCore.openImageZoom('${product.image_url}')" />
-    </div>`;
-  }
-
-  return `<div class="popup-product-image">
-    <div class="popup-image-placeholder">📦<span>Image non disponible</span></div>
-  </div>`;
-}
-
-// ===============================
-// IMAGE ZOOM (CLICK)
-// ===============================
-function openImageZoom(url) {
-  if (!url) return;
-
-  openPopup(`<div class="popup-container" style="
-    background:transparent;
-    box-shadow:none;
-    display:flex;
-    justify-content:center;
-    align-items:center;">
-      <img src="${url}" style="
-        max-width:90vw;
-        max-height:90vh;
-        border-radius:12px;
-        box-shadow:0 10px 30px rgba(0,0,0,0.3);
-        animation: zoomIn 0.2s ease;"
-      />
-  </div>`);
-}
-
-// ===============================
-// NOUVELLE MARQUE (CENTRALISÉ)
-// ===============================
-function openNewBrandPopup(prefillName = "", siteName = "", callback) {
-  if (!siteName) return console.error("[NEW BRAND] siteName manquant");
-
-  const siteColor = siteColors[siteName] || "#999";
-
-  const html = `
-    <div class="popup-container">
-      <div class="popup-header"><h3>➕ Nouvelle marque</h3></div>
-      <div class="popup-body" style="display:flex;flex-direction:column;gap:12px;">
-        <div>Site : <span style="background:${siteColor}; color:white; padding:4px 10px; border-radius:6px; font-size:12px; margin-left:6px;">${siteName}</span></div>
-        <div class="popup-field">
-          <label>Nom de la marque</label>
-          <input id="newBrandName" class="editing-field" value="${prefillName || ""}" placeholder="Ex: Bjorg"/>
-        </div>
-        <div class="popup-field">
-          <label>URL marque</label>
-          <input id="newBrandUrl" class="editing-field" placeholder="https://..."/>
-        </div>
-      </div>
-      <div class="popup-footer">
-        <button id="cancelNewBrandBtn" class="btn-secondary">Annuler</button>
-        <button id="addNewBrandBtn" class="btn-primary">Ajouter</button>
-      </div>
-    </div>
-  `;
-
-  openPopup(html);
-
-  document.getElementById("cancelNewBrandBtn").onclick = closePopup;
-
-  document.getElementById("addNewBrandBtn").onclick = async () => {
-    const name = document.getElementById("newBrandName")?.value.trim();
-    const url = document.getElementById("newBrandUrl")?.value.trim();
-
-    if (!name) return showToast("⚠ Nom de marque obligatoire", "error");
-    if (!url) return showToast("⚠ URL de marque obligatoire", "error");
-
-    try {
-      await window.api.upsertBrand({ brand_name: name, site_name: siteName, brand_url: url });
-      showToast(`Marque ajoutée : ${name}`, "success");
-      if (typeof callback === "function") callback(name, url, siteName);
-      closePopup();
-    } catch (err) {
-      console.error("[NEW BRAND ERROR]", err);
-      showToast("Erreur ajout marque", "error");
-    }
-  };
+function similarityScore(a, b) {
+  if (!a || !b) return 0;
+  a = a.toLowerCase().replace(/[^a-z0-9]/g,"");
+  b = b.toLowerCase().replace(/[^a-z0-9]/g,"");
+  let score = 0;
+  for (let c of a) if (b.includes(c)) score++;
+  return score / Math.max(a.length, b.length);
 }
 
 // ===============================
@@ -437,15 +393,13 @@ window.popupCore = {
   closePopup,
   showToast,
   enableFieldEditing,
-  enableCanonicalEditing,
   setupCanonicalSuggestions,
   setupBrandSelector,
   updateBrandUrlField,
-  setupAutoWidthFields,
   buildHeader,
-  openNewBrandPopup,
   buildImageBlock,
-  openImageZoom
+  openImageZoom,
+  openNewBrandPopup
 };
 
 console.log("[POPUP CORE] VERSION CENTRALISÉE : header, auto-width, nouvelle marque animé");
