@@ -145,14 +145,6 @@ function buildPopupHTML(product) {
   <div class="popup-body">
 
     <div class="popup-field">
-      <label>Image</label>
-      <div class="popup-product-image">
-        ${product.image_url
-          ? `<img src="${product.image_url}" style="max-width:100px;max-height:100px;"/>` : "📦 Image non disponible"}
-      </div>
-    </div>
-
-    <div class="popup-field">
       <label>Nom produit</label>
       <input type="text" id="editNameField" value="${product.name || ""}"/>
     </div>
@@ -168,8 +160,6 @@ function buildPopupHTML(product) {
 
       <div class="brand-row">
         <div class="brand-main">
-          <div class="brand-raw">${product.brand || ""}</div>
-          <span>→</span>
           <div id="editBrandDisplay" class="brand-display">${product.brand || ""}</div>
         </div>
 
@@ -203,7 +193,7 @@ function buildPopupHTML(product) {
 
   <div class="popup-footer">
     <button id="editCancelBtn" class="btn-secondary">Annuler</button>
-    <button id="editSaveBtn" class="btn-primary">Sauvegarder</button>
+    <button id="editSaveBtn" class="btn-primary">Mettre à jour</button>
   </div>
 
 </div>
@@ -270,4 +260,4 @@ function setupKeyboard() {
   document.addEventListener("keydown", currentKeydownHandler);
 }
 
-console.log("[EDIT POPUP] VERSION CLEAN & ALIGNÉE CORE");
+console.log("[EDIT POPUP] VERSION ALIGNÉE CORE");
