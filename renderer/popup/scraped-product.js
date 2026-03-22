@@ -115,19 +115,26 @@ async function showScrapedProductPopup(product) {
         </div>
 
         <div class="form-group">
-          <label>Marque scrapée    →    Marque détectée</label>
+          <label>Marque</label>
 
-          <div class="brand-row" style="margin-top: 10px;">
-            <div class="brand-main" style="flex: 1; text-align: center;">
-              <div class="brand-raw" style="font-size: 14px; font-weight: bold;">${currentScrapedProduct.brand_scraped}</div>
+          <div class="brand-columns-container" style="display: flex; gap: 20px; align-items: center; margin-top: 10px;">
+            <!-- Colonne A: Marque scrapée -->
+            <div style="flex: 1; text-align: center;">
+              <div style="font-size: 14px; font-weight: bold;">Marque scrapée</div>
+              <div class="brand-scraped-value" style="font-size: 16px; margin-top: 5px;">${currentScrapedProduct.brand_scraped}</div>
             </div>
-            <div style="margin: 0 10px;">→</div>
-            <div class="brand-main" style="flex: 1; text-align: center;">
-              <div id="brand-display" class="brand-display" style="font-size: 14px; font-weight: bold;">${currentScrapedProduct.brand}</div>
+
+            <!-- Colonne B: Symbole → -->
+            <div style="font-size: 20px; font-weight: bold;">→</div>
+
+            <!-- Colonne C: Marque détectée et bouton -->
+            <div style="flex: 1; text-align: center;">
+              <div style="font-size: 14px; font-weight: bold;">Marque détectée</div>
+              <div id="brand-display" class="brand-display" style="font-size: 16px; font-weight: bold; margin-top: 5px;">${currentScrapedProduct.brand}</div>
+              <div id="newBrandContainer" style="margin-top: 5px;">
+                <span id="newBrandWarning" style="color:orange;font-weight:bold;cursor:pointer;">➕ Nouvelle marque</span>
+              </div>
               <div id="brand-selector-container" style="margin-top: 6px;"></div>
-            </div>
-            <div class="brand-actions">
-              <span id="newBrandWarning" style="color:orange;font-weight:bold;cursor:pointer;">➕ Nouvelle marque</span>
             </div>
           </div>
 
