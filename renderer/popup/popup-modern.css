@@ -124,50 +124,156 @@ FIELDS
 BRAND UX (🔥 IMPORTANT)
 ====================================== */
 
-/* Colonne Marque */
-.brand-columns-container {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  margin-top: 10px;
-  margin-bottom: 10px;
+/* Ligne principale */
+.brand-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
-.brand-scraped-value, .brand-display {
-  font-size: 16px;
-  font-weight: bold;
-  text-align: center;
+/* Partie gauche (scraped → detected) */
+.brand-main{
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
-/* Dropdown agrandi */
+/* Bloc droite */
+.brand-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-left:auto;
+}
+
+/* Texte marque */
+.brand-display{
+  background:#3a3f45;
+  border:1px solid #555;
+  border-radius:6px;
+  padding:6px 10px;
+  cursor:pointer;
+}
+
+.brand-display:hover{
+  background:#42474d;
+}
+
+/* ⚠ nouvelle marque */
+.brand-warning{
+  color:#ff9800;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+/* ➕ nouvelle marque */
+.brand-add{
+  color:#4CAF50;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+/* ======================================
+DROPDOWN
+====================================== */
 #brand-selector-container {
   position: relative;
   display: inline-block;
   width: 100%;
 }
 
-.brand-dropdown {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  min-width: 280px;
-  max-width: 320px;
-  background: #2a2f34;
-  border: 1px solid #444;
-  border-radius: 8px;
-  margin-top: 6px;
+.brand-dropdown{
+  display:none;
+  position:absolute;
+  top:100%;
+  left:0;
+  min-width: 300px;
   max-height: 300px;
+  background:#2a2f34;
+  border:1px solid #444;
+  border-radius:8px;
+  margin-top:6px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index:1000;
 }
 
-.brand-dropdown.active {
-  display: block;
+.brand-dropdown.active{
+  display:block;
 }
 
-/* Scrollbar personnalisée */
+/* search */
+.brand-search{
+  width:100%;
+  padding:8px;
+  border:none;
+  background:#444;
+  color:white;
+}
+
+/* list */
+.brand-list{
+  max-height:250px;
+  overflow-y: auto;
+}
+
+.brand-item{
+  padding:10px;
+  cursor:pointer;
+}
+
+.brand-item:hover{
+  background:#3a3f45;
+}
+
+/* suggestions */
+.brand-suggestion{
+  padding:8px;
+  font-size:12px;
+  color:#aaa;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+/* ======================================
+FOOTER
+====================================== */
+.popup-footer{
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  border-top:1px solid rgba(255,255,255,0.08);
+  padding-top:15px;
+}
+
+/* BUTTONS */
+.btn-primary{
+  background:linear-gradient(135deg,#4CAF50,#43A047);
+  border:none;
+  padding:10px 18px;
+  border-radius:8px;
+  color:white;
+  cursor:pointer;
+}
+
+.btn-secondary{
+  background:#555;
+  border:none;
+  padding:10px 18px;
+  border-radius:8px;
+  color:white;
+  cursor:pointer;
+}
+
+/* ======================================
+COLUMN STYLES
+====================================== */
+.brand-column {
+  flex: 1;
+  text-align: center;
+  padding: 0 10px;
+}
+
+/* Scrollbar personnalisée pour le dropdown */
 .brand-dropdown::-webkit-scrollbar {
   width: 8px;
 }
@@ -186,21 +292,7 @@ BRAND UX (🔥 IMPORTANT)
   background: #777;
 }
 
-/* search */
-.brand-search {
-  width: 100%;
-  padding: 8px;
-  border: none;
-  background: #444;
-  color: white;
-}
-
-/* list */
-.brand-list {
-  max-height: 220px;
-  overflow-y: auto;
-}
-
+/* Scrollbar personnalisée pour la liste */
 .brand-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -212,51 +304,4 @@ BRAND UX (🔥 IMPORTANT)
 .brand-list::-webkit-scrollbar-thumb {
   background: #555;
   border-radius: 3px;
-}
-
-.brand-item {
-  padding: 10px;
-  cursor: pointer;
-}
-
-.brand-item:hover {
-  background: #3a3f45;
-}
-
-/* suggestions */
-.brand-suggestion {
-  padding: 8px;
-  font-size: 12px;
-  color: #aaa;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-/* ======================================
-FOOTER
-====================================== */
-.popup-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 15px;
-}
-
-/* BUTTONS */
-.btn-primary {
-  background: linear-gradient(135deg, #4CAF50, #43A047);
-  border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-}
-
-.btn-secondary {
-  background: #555;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
 }
