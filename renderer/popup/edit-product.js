@@ -31,15 +31,63 @@ window.showEditProductPopup = async function(product) {
   // =========================
   // BRAND SELECTOR
   // =========================
-  await window.popupCore.setupBrandSelector(
-    "editBrandDisplay",
-    "editBrandSelectorContainer",
-    editingProduct
-  );
+  const brandDisplay = document.getElementById("editBrandDisplay");
+  const brandSelectorContainer = document.getElementById("editBrandSelectorContainer");
+  if (brandDisplay && brandSelectorContainer) {
+    brandDisplay.onclick = async () => {
+      const existingDropdown = brandSelectorContainer.querySelector(".brand-dropdown");
+      if (existingDropdown) {
+        existingDropdown.remove();
+        return;
+      }
 
-  // =========================
-  // URL MARQUE AUTO
-  // =========================
+      const dropdown = document.createElement("div");
+      dropdown.className = "brand-dropdown active";
+      dropdown.style.cssText = `min-width: 300px; max-height: 300px; overflow-y: auto;`;
+
+      let brands = [];
+      try {
+        brands = await window.api.getBrands();
+      } catch (err) {
+        console.error("Erreur chargement marques:", err);
+        return;
+      }
+
+      const brandList = brands.map(brand => `<div class="brand-item" data-brand="${brand}">${brand}</div>`).join("");
+
+      dropdown.innerHTML = `
+        <input type="text" id="brandSearch" placeholder="Rechercher..." class="brand-search" style="width: 100%; padding: 8px; margin-bottom: 10px;"/>
+        <div class="brand-list" style="max-height: 250px; overflow-y: auto;">
+          ${brandList}
+        </div>
+      `;
+
+      brandSelectorContainer.appendChild(dropdown);
+
+      dropdown.querySelector("#brandSearch").oninput = (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        dropdown.querySelectorAll(".brand-item").forEach(item => {
+          item.style.display = item.textContent.toLowerCase().includes(searchTerm) ? "block" : "none";
+        });
+      };
+
+      dropdown.querySelectorAll(".brand-item").forEach(item => {
+        item.onclick = () => {
+          editingProduct.brand = item.dataset.brand;
+          brandDisplay.innerText = item.dataset.brand;
+          dropdown.remove();
+        };
+      });
+
+      document.addEventListener("click", function handler(e) {
+        if (!brandSelectorContainer.contains(e.target)) {
+          dropdown.remove();
+          document.removeEventListener("click", handler);
+        }
+      });
+    };
+  }
+
   await window.popupCore.updateBrandUrlField(editingProduct);
 
   // =========================
@@ -158,8 +206,8 @@ function buildPopupHTML(product) {
     <div class="popup-field">
       <label>Marque</label>
 
-      <div class="brand-row" style="margin-top: 10px;">
-        <div class="brand-main" style="flex: 1; text-align: center;">
+      <div class="brand-row" style="margin-top: 10px; display: flex; align-items: center;">
+        <div class="brand-column" style="flex: 1; text-align: center;">
           <div id="editBrandDisplay" class="brand-display" style="font-size: 14px; font-weight: bold;">${product.brand || ""}</div>
         </div>
         <div class="brand-actions" style="margin-left: 10px;">
