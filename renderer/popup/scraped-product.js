@@ -289,4 +289,4 @@ async function showScrapedProductPopup(product) {
 window.showScrapedProductPopup = showScrapedProductPopup;
 window.fuzzyMatchBrand = fuzzyMatchBrand;
 
-console.log("[SCRAPED POPUP] CLEANED - CORE CENTRALISÉ");
+console.log("[SCRAPED POPUP] VERSION ALIGNÉE CORE");
