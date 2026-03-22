@@ -115,20 +115,25 @@ async function showScrapedProductPopup(product) {
         </div>
 
         <div class="form-group">
-          <label>Marque scrapée → Marque détectée</label>
+          <label>Marque scrapée    →    Marque détectée</label>
 
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div class="brand-raw">${currentScrapedProduct.brand_scraped}</div>
-            <span>→</span>
-
-            <div id="brand-display" class="brand-display">${currentScrapedProduct.brand}</div>
-
-            ${currentScrapedProduct.isNewBrand 
-              ? `<span id="newBrandWarning" style="color:orange;font-weight:bold;cursor:pointer;">⚠ Nouvelle marque ?</span>`
-              : ""}
+          <div class="brand-row" style="margin-top: 10px;">
+            <div class="brand-main" style="flex: 1; text-align: center;">
+              <div class="brand-raw" style="font-size: 14px; font-weight: bold;">${currentScrapedProduct.brand_scraped}</div>
+            </div>
+            <div style="margin: 0 10px;">→</div>
+            <div class="brand-main" style="flex: 1; text-align: center;">
+              <div id="brand-display" class="brand-display" style="font-size: 14px; font-weight: bold;">${currentScrapedProduct.brand}</div>
+              <div id="brand-selector-container" style="margin-top: 6px;"></div>
+            </div>
+            <div class="brand-actions">
+              <span id="newBrandWarning" style="color:orange;font-weight:bold;cursor:pointer;">➕ Nouvelle marque</span>
+            </div>
           </div>
 
-          <div id="brand-selector-container" style="margin-top:6px;"></div>
+          ${currentScrapedProduct.isNewBrand 
+            ? `<div style="margin-top: 10px; color: #ff9800; font-weight: bold;">⚠ Cette marque n’existe pas encore. Confirmez ou choisissez une marque.</div>`
+            : ""}
         </div>
 
         <div class="popup-field">
