@@ -50,6 +50,7 @@ async function showScrapedProductPopup(product) {
       canonical_name: (product.canonical_name || window.utils.generateCanonicalName(product.name))
         .replace(/-/g, " "),
     };
+    console.log("normalized :", normalized);
 
     currentScrapedProduct = normalized;
 

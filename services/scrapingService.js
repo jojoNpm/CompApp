@@ -55,7 +55,7 @@ async function scrapeProduct(url) {
     }
 
     const rawData = await scraperEntry.scraper(url);
-    console.log("Produit retourné par scraper :", rawData); // Log ajouté
+    console.log("Raw data reçu par scrapingService :", rawData); // Log ajouté
 
     // Ajout image
     let imageBuffer = null;

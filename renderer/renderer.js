@@ -7,6 +7,23 @@
 // ===============================
 let popupModulesLoaded = false;
 
+// ===============================
+// COULEURS SITES (pour la sidebar)
+// ===============================
+function getSiteColor(siteName) {
+  const siteColors = {
+    'Carrefour': '#1976d2',
+    'Vegetal Food': '#89b944',
+    'OVS': '#66cdaa',
+    'Chronodrive': '#e3e300',
+    'Intermarché': '#fa6d3d'
+  };
+  return siteColors[siteName] || '#999';
+}
+
+// ===============================
+// FONCTIONS DE CHARGEMENT DES MODULES
+// ===============================
 async function loadPopupModules() {
   try {
     console.log("[RENDERER] Début du chargement des modules...");
@@ -30,6 +47,70 @@ async function loadPopupModules() {
 }
 
 // ===============================
+// INITIALISATION DE L'IMAGE DANS LA SIDEBAR EXISTANTE
+// ===============================
+function setupImageInSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+
+  const imageContainer = document.createElement('div');
+  imageContainer.id = 'sidebar-image-container';
+  imageContainer.style.cssText = `
+    margin-top: 10px;
+    text-align: center;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+  `;
+
+  const imageElement = document.createElement('img');
+  imageElement.id = 'sidebar-image';
+  imageElement.style.cssText = `
+    max-width: 100%;
+    max-height: 150px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    display: none;
+  `;
+
+  imageContainer.appendChild(imageElement);
+  sidebar.appendChild(imageContainer);
+}
+
+// ===============================
+// GESTION DU SURVOL POUR L'IMAGE DANS LA SIDEBAR EXISTANTE
+// ===============================
+function setupImageHover() {
+  document.addEventListener('mouseover', async (e) => {
+    const row = e.target.closest('tr');
+    if (!row || row.classList.contains('brandRow') || row.classList.contains('canonRow')) return;
+
+    const productId = row.dataset.productId;
+    if (!productId) return;
+
+    try {
+      const product = await window.api.getProductById(productId);
+      if (!product || !product.image_url) return;
+
+      const sidebarImage = document.getElementById('sidebar-image');
+      if (!sidebarImage) return;
+
+      sidebarImage.src = product.image_url;
+      sidebarImage.style.display = 'block';
+    } catch (err) {
+      console.error("Erreur chargement image sidebar:", err);
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const row = e.target.closest('tr');
+    if (!row || row.classList.contains('brandRow') || row.classList.contains('canonRow')) return;
+
+    const sidebarImage = document.getElementById('sidebar-image');
+    if (sidebarImage) sidebarImage.style.display = 'none';
+  });
+}
+
+// ===============================
 // INITIALISATION PRINCIPALE
 // ===============================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -37,12 +118,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadPopupModules();
 
     const utilsModule = await import('../services/utils.js');
-
     console.log("[RENDERER] utils.js chargé depuis /services/ et exposé globalement");
 
     const tableBody = document.getElementById('products-body');
     const selectionCount = document.getElementById('selectionCount');
     let selectedProducts = [];
+
+    // ===============================
+    // INITIALISATION DE L'IMAGE DANS LA SIDEBAR EXISTANTE
+    // ===============================
+    setupImageInSidebar();
+    setupImageHover();
 
     // ===============================
     // FONCTIONS UTILITAIRES
@@ -59,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ===============================
-    // RENDU DES PRODUITS
+    // RENDU DES PRODUITS (modifié avec styles de capsule et checkbox canonique)
     // ===============================
     function renderProducts(products) {
       if (!tableBody) return console.error("[RENDERER] tableBody introuvable");
@@ -81,14 +167,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         Object.keys(brands).forEach(brand => {
           const brandRow = document.createElement('tr');
           brandRow.className = `brandRow ${brandIndex % 2 === 0 ? 'brandBlockEven' : 'brandBlockOdd'}`;
-          brandRow.innerHTML = `<td colspan="11" style="text-align: left; padding-left: 20px;">${brand}</td>`;
+          brandRow.style.cssText = `
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin: 5px 0;
+          `;
+          brandRow.innerHTML = `<td colspan="11" style="text-align: left; padding-left: 20px; border-radius: 8px;">${brand}</td>`;
           tableBody.appendChild(brandRow);
           brandIndex++;
 
           Object.keys(brands[brand]).forEach(canonicalKey => {
             const canonRow = document.createElement('tr');
             canonRow.className = 'canonRow';
-            canonRow.innerHTML = `<td colspan="11" style="text-align: left; padding-left: 30px;">${canonicalKey}</td>`;
+            canonRow.style.cssText = `
+              background-color: #f0f2f5;
+              border-radius: 6px;
+              margin: 3px 0;
+            `;
+            canonRow.innerHTML = `
+              <td style="text-align: left; padding-left: 30px; border-radius: 6px;">
+                <input type="checkbox" class="canonical-checkbox"> ${canonicalKey}
+              </td>
+            `;
             tableBody.appendChild(canonRow);
 
             const group = brands[brand][canonicalKey];
@@ -96,6 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             group.forEach(p => {
               const tr = document.createElement('tr');
+              tr.dataset.productId = p.id;
 
               const bestClass = p.price_per_kg === bestPrice ? 'bestPrice' : '';
               const priceDisplay = p.regular_price
@@ -137,6 +238,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                   selectedProducts = selectedProducts.filter(x => x !== p);
                   tr.classList.remove('selected');
                 }
+                updateSelection();
+              });
+
+              // Checkbox canonique
+              const canonicalCheckbox = canonRow.querySelector('.canonical-checkbox');
+              canonicalCheckbox?.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                group.forEach(p => {
+                  const row = document.querySelector(`tr[data-product-id="${p.id}"]`);
+                  const checkbox = row?.querySelector('.product-checkbox');
+                  if (checkbox) {
+                    checkbox.checked = isChecked;
+                    if (isChecked && !selectedProducts.includes(p)) {
+                      selectedProducts.push(p);
+                      row.classList.add('selected');
+                    } else if (!isChecked) {
+                      selectedProducts = selectedProducts.filter(x => x !== p);
+                      row.classList.remove('selected');
+                    }
+                  }
+                });
                 updateSelection();
               });
 
@@ -271,6 +393,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     };
 
+    // ===============================
+    // INITIALISATION DES BOUTONS DE LA SIDEBAR
+    // ===============================
     setTimeout(setupSidebarButtons, 300);
 
     // ===============================

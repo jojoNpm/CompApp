@@ -52,7 +52,7 @@ function generateCanonicalName(name = '') {
   if (!name) return "";
   const ignoredWords = [
     'végétal', 'végétales', 'végétarien', 'végétariennes',
-    'veggie', 'vegan', 'vegetaux', 'vegetal', 'gr', 'kg', ' g '
+    'veggie', 'vegan', 'vegetaux', 'vegetal', ' et ', 'gr', 'kg', ' g '
   ];
   let cleaned = name
     .normalize("NFD")
@@ -120,6 +120,7 @@ function standardizeProductData(rawData) {
     brand: normalizedBrand,
     site_name: rawData.site_name || rawData.site || "Inconnu",
     product_url: rawData.url || rawData.product_url,
+    image_url: rawData.image_url || null,
     regular_price: regularPrice,
     promo_price: promoPrice,
     promo_percent: promoPercent,

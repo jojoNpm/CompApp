@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld('api', {
   // ===============================
   scrapeProduct: (url) => ipcRenderer.invoke('scrape-product', url),
   getProducts: () => ipcRenderer.invoke('get-products'),
+  getProductById: (id) => {
+    console.log("getProductById called with ID:", id); // Log pour vérifier l'appel
+    return ipcRenderer.invoke('get-product-by-id', id);
+  },
   upsertProduct: (productData) => ipcRenderer.invoke('upsert-product', productData),
   deleteProducts: (urls) => ipcRenderer.invoke('delete-products', urls),
 

@@ -63,6 +63,17 @@ async function init() {
         )
       `);
 
+      // Ajouter la colonne image_url si elle n'existe pas
+      database.run(`ALTER TABLE products ADD COLUMN image_url TEXT`, (err) => {
+        if (err && !err.message.includes("duplicate column name")) {
+          console.error("Erreur lors de l'ajout de la colonne image_url :", err);
+          reject(err);
+        } else {
+          console.log("Colonne image_url ajoutée ou déjà existante.");
+        }
+      });
+
+
       // Table products (avec image BLOB et image_url)
       database.run(`
         CREATE TABLE IF NOT EXISTS products(
@@ -399,9 +410,18 @@ async function getProductById(id) {
       LEFT JOIN brands b ON p.brand_id = b.id
       LEFT JOIN canonical_products c ON p.canonical_id = c.id
       WHERE p.id=?
-    `, [id], (err, row) => err ? reject(err) : resolve(row || null));
+    `, [id], (err, row) => {
+      if (err) {
+        console.error("Erreur lors de la récupération du produit par ID:", err);
+        reject(err);
+      } else {
+        console.log("Product fetched from DB:", row); // Log pour vérifier le produit récupéré
+        resolve(row || null);
+      }
+    });
   });
 }
+
 
 /* ======================
    DELETE

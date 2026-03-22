@@ -97,9 +97,6 @@ function registerIpcHandlers() {
 // -----------------------------
 // Vérification doublons produit
 // -----------------------------
-// -----------------------------
-// Vérification doublons produit
-// -----------------------------
 ipcMain.handle('check-duplicate-product', async (event, { name, brand, site }) => {
 
   try {
@@ -167,6 +164,22 @@ AND LOWER(COALESCE(p.site_name,'')) = LOWER(?)`,
   }
 
 });
+
+// -----------------------------
+// Récupérer un produit par ID (NOUVEAU)
+// -----------------------------
+ipcMain.handle('get-product-by-id', async (event, id) => {
+  try {
+    console.log("[MAIN] get-product-by-id:", id);
+    const product = await database.getProductById(id);
+    console.log("[MAIN] Product fetched:", product);
+    return product;
+  } catch (err) {
+    console.error("Erreur lors de la récupération du produit par ID :", err);
+    throw err;
+  }
+});
+
 
   // -----------------------------
   // Récupérer image d’un canonical existant
@@ -380,8 +393,8 @@ function createServer() {
 =============================== */
 function createElectronWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1600,
+    height: 1000,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
