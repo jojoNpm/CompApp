@@ -158,17 +158,16 @@ function buildPopupHTML(product) {
     <div class="popup-field">
       <label>Marque</label>
 
-      <div class="brand-row">
-        <div class="brand-main">
-          <div id="editBrandDisplay" class="brand-display">${product.brand || ""}</div>
+      <div class="brand-row" style="margin-top: 10px;">
+        <div class="brand-main" style="flex: 1; text-align: center;">
+          <div id="editBrandDisplay" class="brand-display" style="font-size: 14px; font-weight: bold;">${product.brand || ""}</div>
         </div>
-
-        <div class="brand-actions">
+        <div class="brand-actions" style="margin-left: 10px;">
           <span id="addNewBrandBtn" class="brand-add">➕ Nouvelle</span>
         </div>
       </div>
 
-      <div id="editBrandSelectorContainer"></div>
+      <div id="editBrandSelectorContainer" style="margin-top: 6px;"></div>
     </div>
 
     <div class="popup-field">
